@@ -1,0 +1,35 @@
+name: Пропозиція
+description: Чого бракує, яку форму додати, що зробити зручніше
+labels: ["пропозиція"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ця сторінка публічна.** Не публікуйте реальних даних і документів з реальними даними.
+        Якщо пропонуєте нову форму — вкажіть її номер і нормативний документ (напр., «дод. 57 до
+        Інструкції, наказ МОУ № 440»), а не вкладайте заповнений бланк.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Перевірка
+      options:
+        - label: Я не публікую реальних даних (ПІБ, номерів частин, документів)
+          required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: Що потрібно
+      description: Яку роботу хочете робити в програмі і як робите її зараз (на папері, в Excel…)
+    validations:
+      required: true
+  - type: input
+    id: normative
+    attributes:
+      label: Нормативна підстава (якщо є)
+      placeholder: "наказ МОУ № 440, розд. IV, п. 12; дод. 14"
+  - type: input
+    id: role
+    attributes:
+      label: Хто ви в обліку (необов'язково)
+      description: Без прізвищ і номерів частин — лише роль
+      placeholder: "МВО складу / начальник служби / діловод"

@@ -127,3 +127,10 @@ def test_normative_docs_in_help(paths):
         assert resp.status_code == 200 and len(resp.data) > 10000, n.file
     assert client.get("/help/normative/..%2Fsecret.db").status_code == 404
     assert client.get("/help/normative/other.pdf").status_code == 404
+
+
+def test_about_has_feedback(paths):
+    from oblik.config import PROJECT_URL
+    _, client = make_client(paths)
+    page = client.get("/about").get_data(as_text=True)
+    assert "Відгуки й пропозиції" in page and PROJECT_URL in page and "Не публікуйте реальних даних" in page

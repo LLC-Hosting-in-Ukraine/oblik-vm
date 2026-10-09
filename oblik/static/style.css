@@ -302,3 +302,4 @@ ul.tree { list-style: none; margin: 8px 0; padding: 8px 12px; background: var(--
 form.inline { display: inline; }
 ul.marks { margin: 4px 0 12px; padding-left: 20px; }
 ul.marks li { margin: 2px 0; }
+.url-big code { font-size: 15px; user-select: all; }

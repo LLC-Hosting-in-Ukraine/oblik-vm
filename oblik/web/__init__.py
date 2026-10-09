@@ -7,7 +7,7 @@ import sqlite3
 from flask import Flask, g, redirect, request, url_for
 
 from .. import __copyright__, __version__, db, help, onboarding
-from ..config import APP_NAME, bundle_dir
+from ..config import APP_NAME, PROJECT_URL, bundle_dir
 from ..storage import Storage
 
 # Сторінки, доступні до вирішення питання з відновленням бази.
@@ -77,6 +77,7 @@ def create_app(storage: Storage) -> Flask:
         else:
             hint_key = endpoint
         return {"app_name": APP_NAME, "app_version": __version__, "app_copyright": __copyright__,
+                "project_url": PROJECT_URL,
                 "storage": storage, "page_hint": help.PAGE_HINTS.get(hint_key)}
 
     return app

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 APP_NAME = "Облік ВМ"
+PROJECT_URL = "https://github.com/LLC-Hosting-in-Ukraine/oblik-vm"   # нові версії, відгуки
 APP_DIR_NAME = "OblikVM"
 DB_FILE = "oblik.db"
 BACKUP_KEEP = 30

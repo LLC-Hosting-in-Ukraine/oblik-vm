@@ -1,0 +1,50 @@
+name: Помилка
+description: Програма працює не так, як має, показує помилку, рахує неправильно
+labels: ["помилка"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ця сторінка публічна — її бачать усі.** Не публікуйте реальних даних: ПІБ, номерів
+        військових частин, заводських / інвентарних номерів, сканів і фото документів, нічого
+        з обмеженим доступом. Описуйте словами або на вигаданих даних («А0000», «Коваль Олена», «SN-001»).
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Перевірка
+      options:
+        - label: Я не публікую реальних даних (ПІБ, номерів частин, документів) — лише опис або вигадані приклади
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версія програми
+      description: «Про програму» внизу сторінки, наприклад 1.0.0
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Що сталося
+      description: Що робили (по кроках), що очікували і що показала програма. Текст помилки — скопіюйте.
+      placeholder: |
+        1. Новий документ → «Видали майно»…
+        2. …
+        Очікував: …
+        Програма показала: …
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Журнал програми (необов'язково)
+      description: |
+        Останні рядки з файлу logs\oblik.log поруч із програмою. Перед вставкою перегляньте:
+        приберіть ПІБ, назви підрозділів і шляхи до папок, якщо там є щось особисте.
+      render: text
+  - type: input
+    id: windows
+    attributes:
+      label: Windows і браузер
+      placeholder: "Windows 10, Edge"

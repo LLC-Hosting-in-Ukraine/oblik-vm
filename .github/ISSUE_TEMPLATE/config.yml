@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Питання «як зробити…»
+    url: https://github.com/LLC-Hosting-in-Ukraine/oblik-vm/discussions
+    about: Як вести облік у програмі, як заповнити документ — запитайте в обговореннях
+  - name: Вразливість у програмі
+    url: https://github.com/LLC-Hosting-in-Ukraine/oblik-vm/security/advisories/new
+    about: Повідомте приватно — не в публічних issues (див. SECURITY.md)
