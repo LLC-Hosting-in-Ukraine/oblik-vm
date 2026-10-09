@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Картка: {{ card.label }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('reports.index') }}">Звіти</a> /
+  <a href="{{ url_for('reports.items') }}">Картка руху одиниці</a> /</p>
+<div class="page-head">
+  <h1>{{ card.label }}</h1>
+  <a class="btn" href="{{ url_for('refs.edit', kind='items', id_=card.item.id) }}">Реквізити одиниці</a>
+</div>
+
+<table class="kv">
+  <tr><th>Найменування</th><td>{{ card.nom.name }}</td></tr>
+  {% if card.nom.code %}<tr><th>Код номенклатури</th><td>{{ card.nom.code }}</td></tr>{% endif %}
+  <tr><th>Клас обліку</th><td>{{ card.class_title }}</td></tr>
+  <tr><th>Заводський №</th><td>{{ card.item.serial_no or '—' }}</td></tr>
+  <tr><th>Інвентарний №</th><td>{{ card.item.inventory_no or '—' }}</td></tr>
+  {% if card.item.passport_no %}<tr><th>№ паспорта (формуляра)</th><td>{{ card.item.passport_no }}</td></tr>{% endif %}
+  {% if card.item.manufacturer %}<tr><th>Виробник</th><td>{{ card.item.manufacturer }}</td></tr>{% endif %}
+  {% if card.item.year_made %}<tr><th>Рік випуску</th><td>{{ card.item.year_made }}</td></tr>{% endif %}
+  {% if card.initial_cost %}<tr><th>Первісна вартість</th><td>{{ card.initial_cost }} грн</td></tr>{% endif %}
+  <tr><th>Де зараз</th><td>{% if card.position %}<b>{{ card.position.place }}</b>,
+      категорія {{ card.position.cat or '—' }}, {{ card.position.price }} грн
+      {% else %}<span class="muted">не на обліку (передано за межі частини, списано або ще не надходило)</span>{% endif %}</td></tr>
+</table>
+
+{% if card.components %}
+<h2>Склад (комплектність){{ hint('Комплектність') }}</h2>
+<table class="grid comps">
+  <thead><tr><th>№</th><th>Складова</th><th>Кількість</th><th>Од.</th><th>Заводський №</th><th>Примітка</th></tr></thead>
+  <tbody>{% for c in card.components %}
+    <tr><td>{{ c.line_no }}</td><td>{{ c.name }}</td><td>{{ c.qty }}</td><td>{{ c.uom or '' }}</td>
+      <td>{{ c.serial_no or '' }}</td><td>{{ c.note or '' }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% endif %}
+
+<h2>Рух</h2>
+{% if card.moves %}
+<div class="table-wrap">
+<table class="grid">
+  <thead><tr><th>Дата операції</th><th>Документ</th><th>Звідки</th><th>Куди</th>
+    <th>Кат.</th><th class="num">Ціна</th></tr></thead>
+  <tbody>
+  {% for m in card.moves %}
+    <tr onclick="location.href='{{ url_for('documents.edit', doc_id=m.document_id) }}'"
+        {% if m.doc_type == 'storno' %}class="reversed"{% endif %}>
+      <td class="nowrap">{{ m.date }}</td>
+      <td><a href="{{ url_for('documents.edit', doc_id=m.document_id) }}">{{ m.doc_label }}</a></td>
+      <td>{{ m.from_title }}</td><td>{{ m.to_title }}</td>
+      <td>{{ m.cat }}</td><td class="num nowrap">{{ m.price }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">Ця одиниця ще не фігурувала в жодному проведеному документі.</p>
+{% endif %}
+{% endblock %}

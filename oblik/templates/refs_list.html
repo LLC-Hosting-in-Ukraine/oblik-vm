@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ ref.title }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('refs.index') }}">Довідники</a> /</p>
+<div class="page-head">
+  <h1>{{ ref.title }}</h1>
+  <a class="btn btn-primary" href="{{ url_for('refs.create', kind=ref.kind) }}">Додати {{ ref.item_title }}</a>
+</div>
+{% if ref.description %}<p class="muted">{{ ref.description }}</p>{% endif %}
+
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Пошук…" autofocus>
+  <label class="check"><input type="checkbox" name="inactive" value="1"
+         {% if show_inactive %}checked{% endif %} onchange="this.form.submit()"> показати неактивні</label>
+  <button class="btn" type="submit">Знайти</button>
+</form>
+
+{% if table %}
+<div class="table-wrap">
+<table class="grid">
+  <thead>
+    <tr>
+      {% for f in ref.list_fields %}<th>{{ f.label }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in table %}
+    <tr class="{% if not row.active %}inactive{% endif %}"
+        onclick="location.href='{{ url_for('refs.edit', kind=ref.kind, id_=row.id) }}'">
+      {% for cell in row.cells %}
+        <td>{% if loop.first %}<a href="{{ url_for('refs.edit', kind=ref.kind, id_=row.id) }}">{{ cell or '—' }}</a>{% else %}{{ cell }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if table|length >= 500 %}<p class="muted">Показано перші 500 записів — уточніть пошук.</p>{% endif %}
+{% else %}
+<p class="muted">{% if q %}Нічого не знайдено.{% else %}Записів ще немає.{% endif %}</p>
+{% endif %}
+{% endblock %}

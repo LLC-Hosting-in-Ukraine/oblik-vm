@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Довідники — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Довідники</h1>
+<div class="cards">
+  {% for ref, n in items %}
+  <a class="card" href="{{ url_for('refs.list_view', kind=ref.kind) }}">
+    <div class="card-title">{{ ref.title }} <span class="count">{{ n }}</span></div>
+    <div class="card-text">{{ ref.description }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

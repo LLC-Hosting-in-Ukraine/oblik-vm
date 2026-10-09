@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Новий документ — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /</p>
+<h1>Що сталося з майном?</h1>
+{% if not has_opening %}
+<div class="banner"><strong>Початкових залишків ще немає.</strong> Почніть з картки
+  «Вносимо майно, яке вже є» — інакше програма вважатиме, що у вас нічого немає, і не дасть
+  нічого видати чи передати. <a href="{{ url_for('main.start') }}">Як це зробити</a></div>
+{% endif %}
+<div class="cards situations">
+  {% for s in situations %}
+  <a class="card" href="{{ url_for('documents.create', doc_type=s.code) }}">
+    <div class="card-title">{{ s.question }}</div>
+    <div class="card-text">{{ s.explain }}</div>
+    <div class="card-paper">Паперовий документ: {{ s.paper }}</div>
+  </a>
+  {% endfor %}
+</div>
+<p class="muted">Помилилися в уже проведеному документі? Відкрийте його і натисніть «Сторнувати» —
+  це виправлення, а не новий рух.</p>
+{% endblock %}

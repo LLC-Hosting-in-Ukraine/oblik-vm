@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Залишки на дату — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('reports.index') }}">Звіти</a> /</p>
+<h1>Залишки на {{ fmt_date(on_date) }}{{ hint('Залишок') }}</h1>
+
+<form class="toolbar" method="get">
+  <label>Чиї залишки:
+  <select name="scope">
+    {% for group, opts in choices %}{% if opts %}
+      <optgroup label="{{ group }}">
+        {% for code, title in opts %}
+          <option value="{{ code }}" {% if code == scope %}selected{% endif %}>{{ title }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endif %}{% endfor %}
+  </select></label>
+  <label>на дату <input type="date" name="on_date" value="{{ on_date }}"></label>
+  <label class="check"><input type="checkbox" name="sub" value="1" {% if sub %}checked{% endif %}>
+    з підлеглими підрозділами</label>
+  <button class="btn btn-primary" type="submit">Показати</button>
+  {% if report %}
+  <a class="btn" href="{{ url_for('reports.stock_xlsx', scope=scope, on_date=on_date, sub='1' if sub else None) }}">Зберегти в Excel</a>
+  {% endif %}
+</form>
+
+{% if error %}<div class="banner banner-error">{{ error }}</div>{% endif %}
+
+{% if report %}
+<p><b>{{ report.title }}</b></p>
+{% if rows %}
+<div class="table-wrap">
+<table class="grid lines">
+  <thead><tr><th>№</th>{% if report.many_places %}<th>Де перебуває</th>{% endif %}
+    <th>Найменування</th><th>Код</th><th>Заводський №</th><th>Інв. №</th><th>Од.</th>
+    <th>Кат.{{ hint('Категорія') }}</th><th class="num">Ціна</th><th class="num">Кількість</th>
+    <th class="num">Сума, грн</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr{% if r.item_id %} onclick="location.href='{{ url_for('reports.item_card', item_id=r.item_id) }}'"{% else %} class="static"{% endif %}>
+      <td>{{ r.n }}</td>
+      {% if report.many_places %}<td>{{ r.place }}</td>{% endif %}
+      <td>{% if r.item_id %}<a href="{{ url_for('reports.item_card', item_id=r.item_id) }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}</td>
+      <td>{{ r.code }}</td>
+      <td>{{ r.serial_no }}</td>
+      <td>{{ r.inventory_no }}</td>
+      <td>{{ r.uom }}</td>
+      <td>{{ r.cat }}</td>
+      <td class="num nowrap">{{ r.price }}</td>
+      <td class="num">{{ r.qty }}</td>
+      <td class="num nowrap">{{ r.sum }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p><b>Усього рядків: {{ rows|length }}</b>, на суму <b>{{ total }} грн</b></p>
+<p class="muted">Одне найменування з різними цінами або категоріями — окремі рядки, як у книгах
+  обліку. Клацніть на рядок з номером, щоб відкрити картку руху одиниці.</p>
+{% else %}
+<p class="muted">На цю дату майна немає.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

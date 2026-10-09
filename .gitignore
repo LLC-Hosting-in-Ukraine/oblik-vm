@@ -1,0 +1,25 @@
+# Середовище та збірка
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+
+# Дані користувача — ніколи не комітимо
+dev_data/
+*.db
+*.db.tmp
+*.db-journal
+backups/
+output/
+logs/
+
+# Зразки реальних документів (ПІБ, номери частин) — тільки локально, не в git
+docs/samples/
+
+# Тестова база автора (exe + oblik.db) — локально
+test_base/
+
+# PDF, які створює tools/word_check.vbs поруч із перевіреним .docx
+oblik/docx_templates/*.pdf

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Журнал змін — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Журнал змін</h1>
+<form class="toolbar" method="get">
+  <select name="entity" onchange="this.form.submit()">
+    <option value="">усі розділи</option>
+    {% for code, title in entities.items() %}
+      <option value="{{ code }}" {% if entity == code %}selected{% endif %}>{{ title }}</option>
+    {% endfor %}
+  </select>
+</form>
+{% if rows %}
+  {% set history = rows %}
+  {% set show_entity = true %}
+  {% include "_history.html" %}
+{% else %}
+  <p class="muted">Записів ще немає.</p>
+{% endif %}
+{% endblock %}

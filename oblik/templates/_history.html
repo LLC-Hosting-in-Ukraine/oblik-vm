@@ -1,0 +1,19 @@
+<table class="grid history">
+  <thead><tr><th>Коли</th><th>Хто</th><th>Що</th>{% if show_entity %}<th>Де</th>{% endif %}<th>Зміни</th></tr></thead>
+  <tbody>
+  {% for h in history %}
+    <tr>
+      <td class="nowrap">{{ h.ts.replace('T', ' ') }}</td>
+      <td>{{ h.operator or '—' }}</td>
+      <td>{{ h.action_title }}</td>
+      {% if show_entity %}<td>{{ h.entity_title }}: {{ h.summary }}</td>{% endif %}
+      <td>
+        {% for c in h.changes %}
+          <div><b>{{ c.label }}:</b>
+            {% if c.old %}<span class="old">{{ c.old }}</span> → {% endif %}{{ c.new or '(порожньо)' }}</div>
+        {% endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ situation.question }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /
+  <a href="{{ url_for('documents.new') }}">Новий документ</a> /</p>
+<h1>{{ situation.question }}</h1>
+<p class="muted">{{ situation.explain }}<br>Паперовий документ: {{ situation.paper }}.</p>
+
+{% if doc_type == 'opening' %}
+<div class="banner">Багато рядків? <a href="{{ url_for('documents.import_opening') }}">Завантажте залишки з
+  Excel</a> за шаблоном програми — замість введення вручну.</div>
+{% endif %}
+{% if errors %}<div class="banner banner-error">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+
+<form method="post" class="form form-wide">
+  {% include "_doc_header.html" %}
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Далі — рядки документа</button>
+    <a class="btn" href="{{ url_for('documents.new') }}">Назад</a>
+  </div>
+</form>
+{% endblock %}

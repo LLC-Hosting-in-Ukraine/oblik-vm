@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>Роботу завершено — {{ app_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <h1>Роботу завершено</h1>
+  {% if storage.unsynced %}
+  <div class="banner banner-error">
+    Флешку не знайдено — зміни лишились на цьому ПК. Вставте флешку і запустіть програму
+    знову: вона запропонує відновити зміни.
+  </div>
+  {% else %}
+  <p>Базу записано на флешку. Цю вкладку можна закрити, флешку — вийняти.</p>
+  {% endif %}
+</main>
+</body>
+</html>

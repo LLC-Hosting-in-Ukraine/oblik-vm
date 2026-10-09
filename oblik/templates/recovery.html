@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Відновлення бази — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Попередній сеанс завершився аварійно</h1>
+
+{% if conflict %}
+<div class="banner banner-error">
+  <p><strong>Базу змінено в двох місцях.</strong> На цьому ПК є зміни, які не потрапили на флешку,
+  а база на флешці тим часом змінювалась (ймовірно, на іншому ПК).
+  Об'єднати їх автоматично неможливо — оберіть, з якою версією працювати.</p>
+  <p>Інша версія не видаляється: її буде збережено в папці <code>backups/</code>
+  з назвою <code>vidkladeno_…</code>.</p>
+</div>
+{% else %}
+<p>На цьому ПК знайдено зміни, які не встигли записатися на флешку
+(наприклад, флешку вийняли під час роботи). На флешці ці зміни відсутні.</p>
+<p><strong>Рекомендовано відновити зміни з ПК.</strong></p>
+{% endif %}
+
+<form method="post" class="choice">
+  <button class="btn btn-primary" name="choice" value="local" type="submit">
+    Відновити зміни з цього ПК
+  </button>
+  <button class="btn" name="choice" value="flash" type="submit"
+          onclick="return confirm('Продовжити з версією з флешки? Зміни з ПК буде відкладено в backups/.');">
+    Взяти версію з флешки
+  </button>
+</form>
+{% endblock %}

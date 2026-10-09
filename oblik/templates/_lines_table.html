@@ -1,0 +1,81 @@
+{% from "_help.html" import hint %}
+{# Таблиця рядків чернетки. p — префікс полів (ln_ — основна, in_ — «Оприбуткувати» в акті
+   якісного стану); out — майно з залишку; years — графи 9–10 акта. #}
+{% macro lines_table(table_id, p, out, rows, stock, categories, classes, doc_type, years=False) %}
+<div class="table-wrap">
+<table class="grid lines" id="{{ table_id }}" data-lines>
+  <thead>
+    <tr>
+      <th>№</th>
+      {% if out %}
+        <th class="w-wide">Майно з залишку</th>
+      {% else %}
+        <th class="w-wide">Найменування</th>{% if doc_type != 'order' %}<th>Заводський №</th><th>Інвентарний №</th>{% endif %}
+        <th>Категорія{{ hint('Категорія') }}</th><th>Ціна, грн</th>
+      {% endif %}
+      <th>Кількість</th>{% if doc_type != 'condition' %}<th title="Відправлено (вимагається) — якщо відрізняється від фактичної">Вимагається</th>{% endif %}
+      <th>Примітка</th>{% if years %}<th title="Графа 9 акта">Експлуатується, років: за нормою</th><th title="Графа 10 акта">фактично</th>{% endif %}
+      <th class="num">Сума</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows + [{}] %}
+    <tr>
+      <td class="n"></td>
+      {% if out %}
+        <td><select name="{{ p }}key" class="ln-key">
+          <option value=""></option>
+          {% for key, title in stock %}
+            <option value="{{ key }}" {% if r.get('key') == key %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select></td>
+      {% else %}
+        <td>
+          <input name="{{ p }}name" class="ln-name" list="nom-list" autocomplete="off"
+                 placeholder="Почніть вводити назву…" value="{{ r.get('name') or '' }}">
+          <input type="hidden" name="{{ p }}nom" class="ln-nom" value="{{ r.get('nomenclature_id') or '' }}">
+          <div class="ln-info"></div>
+          <div class="ln-new" hidden>
+            <div><span class="badge badge-draft">нове</span> Такого найменування ще немає —
+              його буде додано в довідник «Номенклатура»{{ hint('Номенклатура') }}:</div>
+            <div class="ln-new-fields">
+              <label>од. виміру <input name="{{ p }}new_uom" class="ln-new-uom" list="uom-list"
+                     value="{{ r.get('new_uom') or 'шт.' }}"></label>
+              <select name="{{ p }}new_class" class="ln-new-class" title="Клас майна">
+                {% for code, title in classes %}
+                  <option value="{{ code }}" {% if (r.get('new_class') or 'inventory') == code %}selected{% endif %}>{{ title }}</option>
+                {% endfor %}
+              </select>
+              <select name="{{ p }}new_serial" class="ln-new-serial" title="Поштучний облік">
+                <option value="0">обліковується кількістю</option>
+                <option value="1" {% if r.get('new_serial') == '1' %}selected{% endif %}>поштучно, за номерами</option>
+              </select>
+            </div>
+          </div>
+        </td>
+        {% if doc_type != 'order' %}
+        <td><input name="{{ p }}serial" class="ln-serial" value="{{ r.get('serial_no') or '' }}"></td>
+        <td><input name="{{ p }}inv" class="ln-serial" value="{{ r.get('inventory_no') or '' }}"></td>
+        {% endif %}
+        <td>{% if doc_type == 'order' %}<input type="hidden" name="{{ p }}serial" value=""><input type="hidden" name="{{ p }}inv" value="">{% endif %}<select name="{{ p }}cat">
+          <option value="">—</option>
+          {% for c, t in categories.items() %}
+            <option value="{{ c }}" {% if r.get('category') == c %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select></td>
+        <td><input name="{{ p }}price" class="num ln-price" inputmode="decimal" value="{{ r.get('price') or '' }}"></td>
+      {% endif %}
+      <td><input name="{{ p }}qty" class="num ln-qty" inputmode="decimal" value="{{ r.get('qty') or '' }}"></td>
+      {% if doc_type != 'condition' %}<td><input name="{{ p }}req" class="num" inputmode="decimal" value="{{ r.get('req') or '' }}"></td>{% endif %}
+      <td><input name="{{ p }}note" value="{{ r.get('note') or '' }}"></td>
+      {% if years %}<td><input name="{{ p }}ynorm" class="num" value="{{ r.get('years_norm') or '' }}"></td>
+      <td><input name="{{ p }}yfact" class="num" value="{{ r.get('years_fact') or '' }}"></td>{% endif %}
+      <td class="num nowrap ln-sum">{{ r.get('sum') or '' }}</td>
+      <td><button type="button" class="btn btn-small" data-remove title="Видалити рядок">×</button></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<button type="button" class="btn btn-small" data-add-line="{{ table_id }}">Додати рядок</button>
+{% endmacro %}

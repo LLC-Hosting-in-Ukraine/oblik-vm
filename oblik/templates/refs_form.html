@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field_row %}
+{% from "_help.html" import hint %}
+{% block title %}{{ ref.title }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs">
+  <a href="{{ url_for('refs.index') }}">Довідники</a> /
+  <a href="{{ url_for('refs.list_view', kind=ref.kind) }}">{{ ref.title }}</a> /
+</p>
+<h1>{% if id_ %}Редагування{% else %}Додати {{ ref.item_title }}{% endif %}
+  {% if not is_active %}<span class="tag">неактивний</span>{% endif %}</h1>
+
+{% if errors %}
+<div class="banner banner-error">Перевірте поля, позначені червоним.
+  {% if errors.get('') %}{{ errors.get('') }}{% endif %}</div>
+{% endif %}
+
+<form method="post" class="form">
+  {% for f in ref.fields %}
+    {% if f.kind == 'components' %}
+      {% set comps = record.get(f.name) or [] %}
+      <div class="field{% if errors.get(f.name) %} has-error{% endif %}">
+        <label>{{ f.label }}{{ hint(f.term) }}</label>
+        <table class="grid comps" id="comps">
+          <thead><tr><th>№</th><th>Найменування складової</th><th>Кількість</th><th>Од. виміру</th>
+            <th>Заводський №</th><th>Примітка</th><th></th></tr></thead>
+          <tbody>
+          {% for c in comps + [{}] %}
+            <tr>
+              <td class="n"></td>
+              <td><input name="comp_name" value="{{ c.get('name') or '' }}"></td>
+              <td><input name="comp_qty" class="num" inputmode="decimal"
+                         value="{{ format_qty(c.get('qty_m')) if c.get('qty_m') else '' }}"></td>
+              <td><input name="comp_uom" list="dl-uom" value="{{ c.get('uom') or '' }}"></td>
+              <td><input name="comp_serial" value="{{ c.get('serial_no') or '' }}"></td>
+              <td><input name="comp_note" value="{{ c.get('note') or '' }}"></td>
+              <td><button type="button" class="btn btn-small" onclick="removeRow(this)" title="Видалити рядок">×</button></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <datalist id="dl-uom">{% for s in ['шт.', 'к-т', 'од.', 'м', 'кг', 'л', 'пара', 'уп.'] %}<option value="{{ s }}">{% endfor %}</datalist>
+        <button type="button" class="btn btn-small" onclick="addRow()">Додати рядок</button>
+        {% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+        {% if errors.get(f.name) %}<div class="error">{{ errors.get(f.name) }}</div>{% endif %}
+      </div>
+    {% else %}
+      {{ field_row(f, record, errors, options, form_value) }}
+    {% endif %}
+  {% endfor %}
+
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Зберегти</button>
+    {% if not id_ %}
+      <button class="btn" type="submit" name="then" value="new">Зберегти і додати ще</button>
+    {% endif %}
+    <a class="btn" href="{{ url_for('refs.list_view', kind=ref.kind) }}">Скасувати</a>
+  </div>
+</form>
+
+{% if id_ %}
+<div class="danger-zone">
+  <form method="post" action="{{ url_for('refs.set_active', kind=ref.kind, id_=id_) }}">
+    <input type="hidden" name="active" value="{{ 0 if is_active else 1 }}">
+    <button class="btn" type="submit">{{ 'Зробити неактивним' if is_active else 'Зробити активним' }}</button>
+  </form>
+  <form method="post" action="{{ url_for('refs.delete', kind=ref.kind, id_=id_) }}"
+        onsubmit="return confirm('Видалити запис остаточно?');">
+    <button class="btn btn-danger" type="submit">Видалити</button>
+  </form>
+</div>
+
+{% if history %}
+<h2>Історія змін</h2>
+{% include "_history.html" %}
+{% endif %}
+{% endif %}
+
+<script src="{{ url_for('static', filename='form.js') }}"></script>
+{% endblock %}

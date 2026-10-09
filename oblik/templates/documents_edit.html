@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% from "_lines_table.html" import lines_table %}
+{% block title %}Чернетка № {{ doc.doc_no }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /</p>
+<h1>{{ type_title }} № {{ doc.doc_no }}
+  <span class="badge badge-draft">Чернетка</span>{{ hint('Чернетка') }}</h1>
+<p class="muted">{{ situation.explain }} Паперовий документ: {{ situation.paper }}.</p>
+
+<ol class="doc-steps">
+  <li class="done">Реквізити: звідки, куди, дата{% if not values.basis %} <span class="bad">— підстава не вказана</span>{% endif %}</li>
+  <li class="{{ 'done' if totals.count else 'current' }}">Рядки з майном{% if totals.count %}: {{ totals.count }}{% else %} — додайте нижче{% endif %}</li>
+  <li class="{{ 'current' if totals.count else '' }}">Перевірте суми й натисніть <b>«Провести»</b> внизу</li>
+</ol>
+
+{% if errors %}
+<div class="banner banner-error"><strong>Документ не проведено:</strong>
+  {% for e in errors %}<div>• {{ e }}</div>{% endfor %}</div>
+{% endif %}
+{% if check is not none %}
+  {% if check %}
+  <div class="banner banner-error"><strong>Перевірка: документ поки не можна провести.</strong>
+    {% for e in check %}<div>• {{ e }}</div>{% endfor %}</div>
+  {% else %}
+  <div class="banner banner-ok">Перевірка: усе гаразд, документ можна проводити.</div>
+  {% endif %}
+{% endif %}
+
+{% if mvo_place %}
+<div class="banner banner-error"><strong>Перевірте «Куди».</strong> Ви вносите початкові залишки на
+  особу <b>{{ to_title }}</b> — так програма вважатиме майно виданим їй в особисте користування.
+  Якщо це майно під звітом МВО, оберіть у «Куди» місце обліку <b>{{ mvo_place }}</b>
+  (розгорніть «Реквізити» нижче). На особу вносять лише те, що видане їй в користування.</div>
+{% endif %}
+{% if order_link %}
+<div class="banner {{ 'banner-warn' if order_warnings else '' }}">Оформлюється за нарядом{{ hint('Виконання наряду') }}
+  <a href="{{ url_for('documents.edit', doc_id=order_link[0]) }}">{{ order_link[1] }}</a>.
+  {% if order_warnings %}<div><strong>Не збігається з нарядом</strong> — провести можна, але перевірте:</div>
+    {% for w in order_warnings %}<div>• {{ w }}</div>{% endfor %}
+  {% else %}Рядки відповідають наряду.{% endif %}</div>
+{% endif %}
+<form method="post" class="form form-wide" id="doc-form">
+  <input type="hidden" name="mode" value="{{ 'out' if outgoing else 'in' }}">
+  <details class="section" {% if errors %}open{% endif %}>
+    <summary>Реквізити: <b>{{ from_title }} → {{ to_title }}</b>, від {{ fmt_date(doc.doc_date) }},
+      підстава: {{ values.basis or '— не вказано' }} <span class="muted">(натисніть, щоб змінити)</span></summary>
+    {% include "_doc_header.html" %}
+  </details>
+
+  <h2>{% if doc_type == 'condition' %}Списати <span class="muted">(графи 1–10)</span>{% else %}Рядки документа{% endif %}</h2>
+  {% if outgoing %}
+    <p class="help">Майно обирається з того, що є в наявності у місці «Звідки» на дату операції.
+      Ціна й категорія{{ hint('Категорія') }} беруться з залишку. Якщо потрібного майна немає в списку —
+      перевірте дату операції та місце «Звідки».</p>
+    {% if not stock %}<div class="banner">У місці «Звідки» на цю дату немає майна.</div>{% endif %}
+  {% else %}
+    <p class="help">Для поштучного майна{{ hint('Поштучний облік') }} — один рядок на одиницю
+      із заводським або інвентарним номером (картка одиниці створиться автоматично).
+      Найменування можна обрати зі списку або вписати нове — воно саме додасться в довідник.</p>
+  {% endif %}
+
+  {{ lines_table('lines', 'ln_', outgoing, rows, stock, categories, classes, doc_type, years=doc_type == 'condition') }}
+  {% if doc_type == 'condition' %}
+  <h2>Оприбуткувати{{ hint('Оприбуткувати') }} <span class="muted">(графи 11–17)</span></h2>
+  <p class="help">Що ставиться на облік за актом: напр., зібрана система — одним рядком, з інвентарним
+    або заводським номером. Вартість зазвичай — сума списаного (зараз <b>{{ totals_out.sum }} грн</b>,
+    після збереження). Якщо акт лише списує — залиште порожнім.
+    Склад (комплектність) системи можна заповнити в її картці.</p>
+  {{ lines_table('in-lines', 'in_', False, in_rows, [], categories, classes, doc_type) }}
+  {% endif %}
+  {% if doc_type == 'condition' %}
+  <p><b>Списати: {{ totals_out.count }}</b> найм. на суму <b>{{ totals_out.sum }} грн</b>;
+    <b>оприбуткувати: {{ totals_in.count }}</b> найм. на суму <b>{{ totals_in.sum }} грн</b>
+    <span class="muted">(після збереження)</span></p>
+  {% else %}
+  <p><b>Усього найменувань: {{ totals.count }}</b>, на суму <b>{{ totals.sum }} грн</b>
+    <span class="muted">(після збереження)</span></p>
+  {% endif %}
+  {% if word_forms and totals.count %}
+  <p class="muted">Потрібен папір на підпис ще до проведення?
+    {% for f in word_forms %}<a href="{{ url_for('documents.pdf', doc_id=doc.id, form_code=f.code) }}" target="_blank">{{ f.title }} — PDF</a>
+      або <a href="{{ url_for('documents.docx', doc_id=doc.id, form_code=f.code) }}">Word</a>{% if not loop.last %};{% endif %}
+    {% endfor %}
+    — збережіть чернетку перед цим.</p>
+  {% endif %}
+
+  <div class="actions sticky-actions action-bar">
+    <div class="action">
+      <button class="btn btn-primary" type="submit" name="action" value="post"
+              onclick="return confirm('Провести документ? Залишки зміняться, а документ більше не можна буде редагувати (лише сторнувати).');">
+        Провести</button>
+      <small>Готово: майно переміщується, залишки змінюються{{ hint('Проведення') }}</small>
+    </div>
+    <div class="action">
+      <button class="btn" type="submit" name="action" value="save">Зберегти чернетку</button>
+      <small>Продовжити пізніше; на залишки не впливає</small>
+    </div>
+    <div class="action">
+      <button class="btn" type="submit" name="action" value="check">Перевірити</button>
+      <small>Чи можна провести — нічого не змінює</small>
+    </div>
+    <span class="spacer"></span>
+    <div class="action">
+      <button class="btn btn-danger" type="submit" name="action" value="cancel" formnovalidate
+              onclick="return confirm('Анулювати чернетку? Номер лишиться в журналі з позначкою «анульовано».');">
+        Анулювати</button>
+      <small>Документ не потрібен{{ hint('Анулювання') }}</small>
+    </div>
+  </div>
+</form>
+
+{% if not outgoing or doc_type == 'condition' %}
+<datalist id="nom-list">{% for n in nomenclature %}<option value="{{ n.label }}">{% endfor %}</datalist>
+<datalist id="uom-list">{% for u in uoms %}<option value="{{ u }}">{% endfor %}</datalist>
+{% endif %}
+<script>window.NOMS = {{ nomenclature | tojson }}; window.IS_ORDER = {{ 'true' if doc_type == 'order' else 'false' }};</script>
+<script src="{{ url_for('static', filename='docs.js') }}"></script>
+{% endblock %}

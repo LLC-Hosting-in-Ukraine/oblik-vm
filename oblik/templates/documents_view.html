@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}{{ label }} — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="doc-nav">
+  <span class="crumbs"><a href="{{ url_for('documents.index', year=doc.reg_year) }}">Документи {{ doc.reg_year }}</a> /</span>
+  <span class="doc-nav-arrows">
+    {% if nav.prev %}<a class="btn btn-small" href="{{ url_for('documents.edit', doc_id=nav.prev[0]) }}">← № {{ nav.prev[1] }}</a>{% endif %}
+    {% if nav.next %}<a class="btn btn-small" href="{{ url_for('documents.edit', doc_id=nav.next[0]) }}">№ {{ nav.next[1] }} →</a>{% endif %}
+  </span>
+</div>
+<h1>{{ label }}
+  <span class="badge badge-{{ doc.status }}">{{ status_title }}</span>
+  {% if doc.reversed_by_id %}<span class="badge badge-reversed">сторновано</span>{% endif %}</h1>
+
+{% if related.reversal_of %}
+<div class="banner">Це сторно{{ hint('Сторно') }} документа
+  <a href="{{ url_for('documents.edit', doc_id=related.reversal_of[0]) }}">{{ related.reversal_of[1] }}</a>.
+  Воно скасовує його рух.</div>
+{% endif %}
+{% if related.reversed_by %}
+<div class="banner">Документ сторновано{{ hint('Сторно') }}:
+  <a href="{{ url_for('documents.edit', doc_id=related.reversed_by[0]) }}">{{ related.reversed_by[1] }}</a>.
+  Його рух скасовано.</div>
+{% endif %}
+
+{% if order_link %}
+<div class="banner">Оформлено за нарядом{{ hint('Виконання наряду') }}
+  <a href="{{ url_for('documents.edit', doc_id=order_link[0]) }}">{{ order_link[1] }}</a>.
+  {% if doc.status == 'posted' and not doc.reversed_by_id %}Зараховано у виконання наряду.{% endif %}</div>
+{% endif %}
+
+{% if mvo_place %}
+<div class="banner banner-error"><strong>Можлива помилка:</strong> початкові залишки внесено на
+  особу <b>{{ to_title }}</b>, тож програма вважає це майно виданим їй в особисте користування.
+  Якщо це майно під звітом МВО, його треба рахувати на місці обліку <b>{{ mvo_place }}</b>:
+  сторнуйте цей документ (внизу сторінки) і внесіть залишки заново, обравши в «Куди» місце обліку.</div>
+{% endif %}
+
+<table class="kv">
+  <tr><th>Що</th><td>{{ type_title }}</td></tr>
+  <tr><th>Реєстраційний №</th><td>{{ doc.reg_no }} ({{ doc.reg_year }} р.)</td></tr>
+  <tr><th>Дата документа / операції</th><td>{{ fmt_date(doc.doc_date) }} / {{ fmt_date(doc.op_date) }}</td></tr>
+  <tr><th>{{ 'Місце обліку' if doc.doc_type == 'condition' else 'Звідки' }}</th><td>{% if from_link %}<a href="{{ from_link }}">{{ from_title }}</a>{% else %}{{ from_title }}{% endif %}</td></tr>
+  <tr><th>Куди</th><td>{% if to_link %}<a href="{{ to_link }}">{{ to_title }}</a>{% else %}{{ to_title }}{% endif %}</td></tr>
+  <tr><th>Підстава{{ hint('Підстава') }}</th><td>{{ doc.basis or '—' }}
+    {% if doc.basis %}<div class="help"><a href="{{ url_for('documents.index', year=doc.reg_year, q=doc.basis) }}">усі документи
+      з цією підставою</a>. Сама підстава (наказ, наряд, акт технічного стану) — паперовий документ;
+      окремою сторінкою в програмі вона з'явиться, коли додамо такі документи.</div>{% endif %}</td></tr>
+  {% if service %}<tr><th>Служба</th><td>{{ service }}</td></tr>{% endif %}
+  {% if recipient %}<tr><th>Відповідальний одержувач</th><td>{{ recipient }}</td></tr>{% endif %}
+  {% if doc.valid_until %}<tr><th>Дійсний до</th><td>{{ fmt_date(doc.valid_until) }}</td></tr>{% endif %}
+  {% if doc.note %}<tr><th>Примітка</th><td>{{ doc.note }}</td></tr>{% endif %}
+  {% if doc.posted_at %}<tr><th>Проведено</th><td>{{ doc.posted_at.replace('T', ' ') }}</td></tr>{% endif %}
+</table>
+
+<h2>Рядки</h2>
+<div class="table-wrap">
+<table class="grid lines">
+  <thead><tr><th>№</th><th>Найменування</th><th>Код</th><th>Од.</th><th>Кат.</th>
+    <th class="num">Ціна</th><th class="num">Вимагається</th><th class="num">Кількість</th>
+    <th class="num">Сума</th><th>Примітка</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.line_no }}</td>
+      <td>{% if r.item_id %}<a href="{{ url_for('reports.item_card', item_id=r.item_id) }}" title="Картка руху одиниці">{{ r.item_label }}</a>
+        {% else %}<a href="{{ url_for('refs.edit', kind='nomenclature', id_=r.nomenclature_id) }}" title="Номенклатура">{{ r.name }}</a>{% endif %}
+        {% if r.direction %}<span class="badge badge-posted">оприбуткувати</span>{% elif doc.doc_type == 'condition' %}<span class="badge badge-reversed">списати</span>{% endif %}</td>
+      <td>{{ r.code }}</td>
+      <td>{{ r.uom }}</td>
+      <td>{{ r.cat }}</td>
+      <td class="num nowrap">{{ r.price }}</td>
+      <td class="num">{{ r.req }}</td>
+      <td class="num">{{ r.qty }}</td>
+      <td class="num nowrap">{{ r.sum }}</td>
+      <td>{{ r.note or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if doc.doc_type == 'condition' %}
+<p><b>Списано: {{ totals_out.count }}</b> найм. на суму <b>{{ totals_out.sum }} грн</b>;
+  <b>оприбутковано: {{ totals_in.count }}</b> найм. на суму <b>{{ totals_in.sum }} грн</b></p>
+{% else %}
+<p><b>Усього найменувань: {{ totals.count }}</b>, на суму <b>{{ totals.sum }} грн</b></p>
+{% endif %}
+
+{% if execution %}
+<h2 id="execution">Виконання наряду{{ hint('Виконання наряду') }}
+  <span class="badge badge-exec-{{ execution.state }}">{{ execution.state_title }}</span>
+  {% if execution.expired %}<span class="badge badge-exec-expired">строк дії минув</span>{% endif %}</h2>
+<div class="table-wrap">
+<table class="grid lines">
+  <thead><tr><th>№</th><th>Найменування</th><th>Од.</th><th>Кат.</th>
+    <th class="num">У наряді</th><th class="num">Фактично видано</th><th class="num">Лишилося</th>
+    <th>За якими документами</th></tr></thead>
+  <tbody>
+  {% for r in exec_rows %}
+    <tr>
+      <td>{{ r.n }}</td><td>{{ r.name }}</td><td>{{ r.uom }}</td><td>{{ r.cat }}</td>
+      <td class="num">{{ r.ordered }}</td>
+      <td class="num {{ 'over' if r.over else '' }}" {% if r.over %}title="Видано більше, ніж у наряді"{% endif %}>{{ r.fact }}</td>
+      <td class="num">{{ r.remaining }}</td>
+      <td>{% for id, ref in r.docs %}{% if id %}<a href="{{ url_for('documents.edit', doc_id=id) }}">{{ ref }}</a>{% else %}{{ ref }} <span class="muted">(відмітка)</span>{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if execution.extra %}
+<div class="banner banner-warn"><strong>У документах за нарядом є майно, якого немає в наряді:</strong>
+  {% for ref, n, name in execution.extra %}<div>• {{ ref }}, рядок {{ n }}: «{{ name }}»</div>{% endfor %}</div>
+{% endif %}
+{% if exec_docs %}
+<p>Документи за нарядом:
+  {% for d in exec_docs %}<a href="{{ url_for('documents.edit', doc_id=d.id) }}">{{ d.ref }}</a>
+    <span class="badge badge-{{ d.status }}">{{ d.status_title }}</span>{% if d.reversed %}<span class="badge badge-reversed">сторновано</span>{% endif %}{% if not loop.last %}, {% endif %}
+  {% endfor %}</p>
+{% endif %}
+{% if execution.state != 'done' %}
+  {% if exec_type %}
+  <form method="post" action="{{ url_for('documents.execute', doc_id=doc.id) }}" class="actions">
+    <button class="btn btn-primary" type="submit">Оформити {{ 'акт приймання' if exec_type == 'receipt' else 'накладну' }} за нарядом</button>
+    <span class="muted">Буде створено чернетку з тими самими сторонами; рядки — те, що ще лишилося видати.</span>
+  </form>
+  {% else %}
+  <p class="muted">Наряд виконують інші частини між собою — документ про рух у вашій програмі не оформлюється.
+    Коли вам повернуть виконаний примірник, відмітьте виконання нижче.</p>
+  {% endif %}
+{% endif %}
+{% if marks %}
+<p>Відмітки про виконання{{ hint('Відмітка про виконання') }}:</p>
+<ul class="marks">
+  {% for m in marks %}
+  <li>{{ m.date }}: рядок {{ m.line_no }} — видано {{ m.qty }}, {{ m.doc_ref }}{% if m.note %} ({{ m.note }}){% endif %}
+    <form method="post" action="{{ url_for('documents.delete_mark', mark_id=m.id) }}" class="inline"
+          onsubmit="return confirm('Видалити відмітку? Запис про це лишиться в історії наряду.');">
+      <button class="btn btn-small" type="submit" title="Видалити помилкову відмітку">×</button></form></li>
+  {% endfor %}
+</ul>
+{% endif %}
+<details class="section" {% if not exec_type and execution.state != 'done' %}open{% endif %}>
+  <summary>Відмітити виконання вручну{{ hint('Відмітка про виконання') }}</summary>
+  <p class="help">Для майна, яке видано поза програмою: наряд виконала інша частина і повернула вам
+    виконаний примірник, або документ оформлено не тут. Документи, оформлені в програмі
+    за нарядом, рахуються самі — для них відмітка не потрібна.</p>
+  <form method="post" action="{{ url_for('documents.add_mark', doc_id=doc.id) }}" class="form">
+    <div class="form-grid">
+      <div class="field wide"><label for="m-line">Рядок наряду</label>
+        <select id="m-line" name="line_id" required>
+          {% for lid, title in mark_lines %}<option value="{{ lid }}" {% if lid == mark_default %}selected{% endif %}>{{ title }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label for="m-qty">Фактично видано</label>
+        <input id="m-qty" name="qty" class="num" inputmode="decimal" required></div>
+      <div class="field"><label for="m-date">Дата відмітки</label>
+        <input id="m-date" type="date" name="mark_date" value="{{ today }}"></div>
+      <div class="field wide"><label for="m-ref">За яким документом видано</label>
+        <input id="m-ref" name="doc_ref" required placeholder="Назва, номер і дата: Акт приймання-передачі № 12 від 05.10.2026"></div>
+      <div class="field wide"><label for="m-note">Примітка</label>
+        <input id="m-note" name="note"></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Зберегти відмітку</button>
+  </form>
+</details>
+<p class="muted">Програма рахує видане з проведених документів за нарядом (сторновані не враховуються)
+  і з ручних відміток.
+  У друкованому наряді ці дані — у графах 8–9.</p>
+{% endif %}
+
+{% if obtained %}
+<div class="section">
+  <h2>Склад оприбуткованого{{ hint('Комплектність') }}</h2>
+  <p class="help">Списані одиниці можна записати як складові оприбуткованої системи — з номерами
+    й категоріями. Склад видно і можна змінити в картці одиниці.</p>
+  {% for o in obtained %}
+  <form method="post" action="{{ url_for('documents.fill_components', doc_id=doc.id, item_id=o.id) }}" class="actions"
+        {% if o.n %}onsubmit="return confirm('У «{{ o.label }}» уже є склад ({{ o.n }}). Замінити його списаним за цим актом?');"{% endif %}>
+    <a href="{{ url_for('reports.item_card', item_id=o.id) }}">{{ o.label }}</a>
+    <span class="muted">{% if o.n %}складових: {{ o.n }}{% else %}склад не заповнено{% endif %}</span>
+    <button class="btn btn-small" type="submit">{% if o.n %}Замінити склад списаним{% else %}Заповнити склад зі списаного{% endif %}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if word_forms %}
+<div class="print-box">
+  <b>Паперовий документ:</b>
+  {% for f in word_forms %}
+    <a class="btn btn-primary" href="{{ url_for('documents.pdf', doc_id=doc.id, form_code=f.code) }}" target="_blank">{{ f.title }} ({{ f.appendix }}) — друк (PDF)</a>
+    <a class="btn" href="{{ url_for('documents.docx', doc_id=doc.id, form_code=f.code) }}">Word — щоб змінити перед друком</a>
+  {% endfor %}
+  <span class="muted">PDF відкриється в новій вкладці: перевірте, роздрукуйте (Ctrl+P) і підпишіть.
+    Копії зберігаються в папці output. <a href="{{ url_for('documents.templates_docx') }}">Як змінити шаблон Word</a></span>
+</div>
+{% endif %}
+
+{% if doc.status == 'posted' and not doc.reversed_by_id and doc.doc_type not in ('storno', 'order') %}
+<details class="section">
+  <summary>Знайшли помилку? Сторнувати документ{{ hint('Сторно') }}</summary>
+  <p>Сторно скасує рух цього документа: програма створить дзеркальний документ, і майно
+    повернеться туди, звідки його взяли. Обидва документи лишаться в історії.
+    Після цього оформіть правильний документ.</p>
+  <p class="muted">Якщо майно з цього документа вже рухалося далі, спершу сторнуйте пізніші документи.</p>
+  <form method="post" action="{{ url_for('documents.reverse', doc_id=doc.id) }}" class="form"
+        onsubmit="return confirm('Сторнувати документ? Цю дію не можна скасувати.');">
+    <div class="form-grid">
+      <div class="field"><label>Дата сторно</label>
+        <input type="date" name="on_date" value="{{ today }}" min="{{ doc.op_date }}"></div>
+      <div class="field wide"><label>Причина (підстава)</label>
+        <input name="basis" placeholder="Наприклад: помилка в кількості; наказ № … від …"></div>
+    </div>
+    <button class="btn btn-danger" type="submit">Сторнувати</button>
+  </form>
+</details>
+{% endif %}
+
+{% if history %}
+<h2>Історія</h2>
+{% include "_history.html" %}
+{% endif %}
+{% endblock %}

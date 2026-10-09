@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ url_for('main.index') }}">{{ app_name }}</a>
+  <nav>
+    <a href="{{ url_for('documents.index') }}">Документи</a>
+    <a href="{{ url_for('refs.index') }}">Довідники</a>
+    <a href="{{ url_for('reports.index') }}">Звіти</a>
+    <a href="{{ url_for('refs.settings_view') }}">Налаштування</a>
+    <a href="{{ url_for('refs.audit_view') }}">Журнал змін</a>
+    <a href="{{ url_for('main.help_view') }}">Довідка</a>
+  </nav>
+  <form method="post" action="{{ url_for('main.shutdown') }}"
+        onsubmit="return confirm('Завершити роботу? Базу буде записано на флешку.');">
+    <button class="btn btn-exit" type="submit">Завершити роботу</button>
+  </form>
+</header>
+
+{% if storage.unsynced %}
+<div class="banner banner-error">
+  <strong>Флешку не знайдено.</strong>
+  Зміни тимчасово зберігаються на цьому ПК і будуть записані на флешку автоматично,
+  щойно її повернуть. Не вимикайте ПК і не закривайте програму до того.
+</div>
+{% endif %}
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="banner banner-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% if page_hint %}
+  <details class="page-hint" data-hint-id="{{ request.endpoint }}{{ request.view_args.get('kind', '') if request.view_args else '' }}" open>
+    <summary>Що це за сторінка і що тут робити</summary>
+    <p>{{ page_hint }}</p>
+  </details>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer>{{ app_name }} {{ app_version }} · {{ app_copyright }} ·
+  <a href="{{ url_for('main.about') }}">Про програму, ліцензія GPL-3.0</a> ·
+  <a href="{{ url_for('main.terms') }}">Правила використання</a> ·
+  дані зберігаються лише локально й нікуди не передаються</footer>
+<script src="{{ url_for('static', filename='hints.js') }}"></script>
+</body>
+</html>

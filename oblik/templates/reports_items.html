@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Картка руху одиниці — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('reports.index') }}">Звіти</a> /</p>
+<h1>Картка руху одиниці</h1>
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Заводський, інвентарний № або найменування" autofocus>
+  <button class="btn" type="submit">Знайти</button>
+</form>
+{% if table %}
+<div class="table-wrap">
+<table class="grid">
+  <thead><tr><th>Одиниця</th><th>Заводський №</th><th>Інв. №</th><th>Де зараз</th></tr></thead>
+  <tbody>
+  {% for r in table %}
+    <tr onclick="location.href='{{ url_for('reports.item_card', item_id=r.id) }}'">
+      <td><a href="{{ url_for('reports.item_card', item_id=r.id) }}">{{ r.name }}</a></td>
+      <td>{{ r.serial_no or '' }}</td><td>{{ r.inventory_no or '' }}</td><td>{{ r.place }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if table|length >= 200 %}<p class="muted">Показано перші 200 — уточніть пошук.</p>{% endif %}
+{% else %}
+<p class="muted">{% if q %}Нічого не знайдено.{% else %}Поштучних одиниць ще немає.{% endif %}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,4 @@
+{# Значок «?» з поясненням терміна з довідки (oblik/help.py). #}
+{% macro hint(name) %}{% set t = term(name) %}{% if t %}<span class="hint" tabindex="0" role="button"
+  aria-label="Що таке «{{ t.title }}»?"><span class="hint-mark">?</span><span class="hint-body"
+  role="tooltip"><b>{{ t.title }}.</b> {{ t.text }}{% if t.source %}<i>Джерело: {{ t.source }}</i>{% endif %}</span></span>{% endif %}{% endmacro %}

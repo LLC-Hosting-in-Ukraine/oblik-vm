@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Документи — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if exec_filter %}{{ exec_filters[exec_filter] }} (за всі роки){% else %}Документи за {{ year }} рік{% endif %}</h1>
+  <span>
+    <a class="btn" href="{{ url_for('documents.templates_docx') }}">Шаблони Word</a>
+    <a class="btn btn-primary" href="{{ url_for('documents.new') }}">Новий документ</a>
+  </span>
+</div>
+
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Пошук: підстава, номер…">
+  <select name="year" onchange="this.form.submit()">
+    {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+  </select>
+  <select name="type" onchange="this.form.submit()">
+    <option value="">усі типи</option>
+    {% for code, title in types.items() %}
+      <option value="{{ code }}" {% if doc_type == code %}selected{% endif %}>{{ title }}</option>
+    {% endfor %}
+  </select>
+  <select name="status" onchange="this.form.submit()">
+    <option value="">усі статуси</option>
+    {% for code, title in statuses.items() %}
+      <option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ title }}</option>
+    {% endfor %}
+  </select>
+  <select name="exec" onchange="this.form.submit()" aria-label="Виконання нарядів">
+    <option value="">виконання нарядів: усі</option>
+    {% for code, title in exec_filters.items() %}
+      <option value="{{ code }}" {% if exec_filter == code %}selected{% endif %}>{{ title }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Знайти</button>
+  {% if q %}<a href="{{ url_for('documents.index', year=year) }}">скинути пошук</a>{% endif %}
+  <span class="muted">Статуси: чернетка{{ hint('Чернетка') }} · проведено{{ hint('Проведення') }} ·
+    анульовано{{ hint('Анулювання') }} · сторно{{ hint('Сторно') }}</span>
+</form>
+
+{% if table %}
+<div class="table-wrap">
+<table class="grid">
+  <thead><tr><th>Рег. №{{ hint('Реєстраційний номер') }}</th><th>№ док.</th><th>Дата</th><th>Що</th>
+    <th>Звідки → Куди</th><th>Рядків</th><th class="num">Сума, грн</th><th>Статус</th></tr></thead>
+  <tbody>
+  {% for d in table %}
+    <tr class="status-{{ d.status }}{% if d.reversed_by_id %} reversed{% endif %}"
+        onclick="location.href='{{ url_for('documents.edit', doc_id=d.id) }}'">
+      <td><a href="{{ url_for('documents.edit', doc_id=d.id) }}">{{ d.reg_no }}</a></td>
+      <td>{{ d.doc_no }}</td>
+      <td class="nowrap">{{ d.date }}</td>
+      <td>{{ d.type_title }}</td>
+      <td>{{ d.from_title }} → {{ d.to_title }}</td>
+      <td class="num">{{ d.n_lines }}</td>
+      <td class="num nowrap">{{ d.total }}</td>
+      <td><span class="badge badge-{{ d.status }}">{{ d.status_title }}</span>
+        {% if d.reversed_by_id %}<span class="badge badge-reversed">сторновано</span>{% endif %}
+        {% if d.execution %}<span class="badge badge-exec-{{ d.execution.state }}">{{ d.execution.state_title }}</span>
+          {% if d.execution.expired %}<span class="badge badge-exec-expired">строк минув</span>{% endif %}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">{% if exec_filter %}Таких нарядів немає.{% else %}Документів ще немає. Почніть з кнопки «Новий документ».{% endif %}</p>
+{% endif %}
+{% endblock %}

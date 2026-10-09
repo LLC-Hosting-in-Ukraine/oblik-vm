@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field_row %}
+{% block title %}Налаштування — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Налаштування</h1>
+<p class="muted">Реквізити, які підставляються в документи. Підписантів спершу додайте в довіднику
+  <a href="{{ url_for('refs.list_view', kind='persons') }}">«Особи»</a>, службу — в
+  <a href="{{ url_for('refs.list_view', kind='services') }}">«Служби забезпечення»</a>.</p>
+
+{% if errors %}<div class="banner banner-error">Перевірте поля, позначені червоним.</div>{% endif %}
+
+<form method="post" class="form">
+  {% for f in fields %}
+    {{ field_row(f, record, errors, options, form_value) }}
+  {% endfor %}
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Зберегти</button>
+  </div>
+</form>
+{% endblock %}

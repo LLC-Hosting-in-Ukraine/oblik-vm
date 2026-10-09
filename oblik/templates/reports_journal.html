@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Книга реєстрації документів — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('reports.index') }}">Звіти</a> /</p>
+<div class="page-head">
+  <h1>Книга реєстрації та руху облікових документів (дод. 2)</h1>
+</div>
+
+<form class="toolbar" method="get">
+  <select name="year" onchange="this.form.submit()">
+    {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+  </select>
+  <a class="btn" href="{{ url_for('reports.journal_xlsx', year=year) }}">Зберегти в Excel для друку</a>
+  <span class="muted">Реєстраційний номер{{ hint('Реєстраційний номер') }} = номер у цій книзі.</span>
+</form>
+
+{% if j.drafts %}
+<div class="banner">Чернеток за {{ year }} рік: {{ j.drafts }}. Вони сюди не потрапляють —
+  документ реєструється після підписання (проведення). Анульовані показано, щоб у номерах не
+  було пропусків.</div>
+{% endif %}
+
+{% if j.rows %}
+<div class="table-wrap">
+<table class="grid">
+  <thead>
+    <tr><th>Рег. №</th><th>Дата реєстрації</th><th>Найменування документа</th><th>№ док.</th>
+      <th>Дата док.</th><th>Військове майно</th><th>Від кого / кому</th><th>Строк виконання</th></tr>
+    <tr class="col-nums"><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>8</th><th>9</th><th>10</th></tr>
+  </thead>
+  <tbody>
+  {% for r in j.rows %}
+    <tr class="{{ 'status-cancelled' if r.cancelled }}{{ ' reversed' if r.reversed }}"
+        onclick="location.href='{{ url_for('documents.edit', doc_id=r.id) }}'">
+      <td><a href="{{ url_for('documents.edit', doc_id=r.id) }}">{{ r.reg_no }}</a></td>
+      <td class="nowrap">{{ r.reg_date }}</td>
+      <td>{{ r.title }}{% if r.reversed %} <span class="badge badge-reversed">сторновано</span>{% endif %}</td>
+      <td>{{ r.doc_no }}</td>
+      <td class="nowrap">{{ r.doc_date }}</td>
+      <td>{{ r.goods }}</td>
+      <td>{{ r.counterpart }}</td>
+      <td class="nowrap">{{ r.valid_until }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted">Графи 6–7 (примірники, аркуші) та 11–14 (підписи, номер справи й аркушів)
+  заповнюються від руки в роздрукованій книзі — у файлі Excel для них є порожні колонки.</p>
+{% else %}
+<p class="muted">За {{ year }} рік зареєстрованих документів немає.</p>
+{% endif %}
+{% endblock %}

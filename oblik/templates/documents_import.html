@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Залишки з Excel — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /
+  <a href="{{ url_for('documents.new') }}">Новий документ</a> /</p>
+<h1>Завантажити початкові залишки з Excel</h1>
+
+<ol class="doc-steps">
+  <li class="current">Завантажте шаблон і заповніть аркуш «Залишки» (у шаблоні є приклад і підказки)</li>
+  <li>Оберіть місце обліку й дату, вкажіть заповнений файл</li>
+  <li>Програма створить <b>чернетку</b> — перегляньте й проведіть її</li>
+</ol>
+
+<p><a class="btn" href="{{ url_for('documents.import_template') }}">Завантажити шаблон (.xlsx)</a>
+  <span class="muted">Один рядок — одне найменування; поштучне майно — по рядку на одиницю з номером.</span></p>
+
+{% if errors %}
+<div class="banner banner-error"><strong>Файл не завантажено — виправте в Excel і спробуйте ще раз
+  (нічого не змінено):</strong>
+  {% for e in errors[:50] %}<div>• {{ e }}</div>{% endfor %}
+  {% if errors|length > 50 %}<div>… і ще {{ errors|length - 50 }}.</div>{% endif %}</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="form form-wide">
+  <div class="form-grid">
+    <div class="field">
+      <label for="f-to_place">Куди внести (місце обліку або особа){{ hint('Місце обліку') }}</label>
+      <select id="f-to_place" name="to_place" required>
+        <option value=""></option>
+        {% for group, opts in place_options %}
+          <optgroup label="{{ group }}">
+            {% for code, title in opts %}
+              <option value="{{ code }}" {% if values.to_place == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+      <div class="help">Майно під звітом МВО — на місце обліку (склад, службу), а не на особу.</div>
+    </div>
+    <div class="field">
+      <label for="f-op_date">Дата, на яку залишки{{ hint('Дата операції') }}</label>
+      <input id="f-op_date" type="date" name="op_date" value="{{ values.op_date }}" required>
+    </div>
+    <div class="field wide">
+      <label for="f-file">Заповнений файл Excel (.xlsx)</label>
+      <input id="f-file" type="file" name="file" accept=".xlsx" required>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Перевірити й створити чернетку</button>
+    <a class="btn" href="{{ url_for('documents.create', doc_type='opening') }}">Внести вручну</a>
+  </div>
+</form>
+<p class="muted">Нові найменування буде додано в довідник «Номенклатура», нові поштучні одиниці — в
+  «Поштучні одиниці». Якщо чернетка не потрібна — анулюйте її; додані найменування можна
+  зробити неактивними в довіднику.</p>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Узагальнююча відомість — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('reports.index') }}">Звіти</a> /</p>
+<h1>Узагальнююча відомість (дод. 1){{ hint('Узагальнююча відомість') }}</h1>
+
+<form method="get" class="form form-wide">
+  <div class="toolbar">
+    <label>Чия книга обліку:
+    <select name="scope">
+      {% for group, opts in choices %}{% if opts %}
+        <optgroup label="{{ group }}">
+          {% for code, title in opts %}
+            <option value="{{ code }}" {% if code == form.scope %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}{% endfor %}
+    </select></label>
+    <label>період з <input type="date" name="from" value="{{ form['from'] }}"></label>
+    <label>по <input type="date" name="to" value="{{ form.to }}"></label>
+    <label class="check"><input type="checkbox" name="sub" value="1" {% if form.sub %}checked{% endif %}>
+      з підлеглими підрозділами</label>
+  </div>
+  <details class="section">
+    <summary>Реквізити для друку: номер, книга, підписи <span class="muted">(натисніть, щоб змінити)</span></summary>
+    <div class="form-grid">
+      <div class="field"><label>Номер відомості</label>
+        <input name="number" value="{{ form.number }}" placeholder="Наприклад: 10"></div>
+      <div class="field"><label>Дата складання</label>
+        <input type="date" name="compiled" value="{{ form.compiled }}"></div>
+      <div class="field wide"><label>Найменування книги обліку</label>
+        <input name="book" value="{{ form.book }}"></div>
+      <div class="field wide"><label>Реквізити книги обліку</label>
+        <input name="book_details" value="{{ form.book_details }}"
+               placeholder="Наприклад: зареєстровано за рапортом № … від …, інв. № …">
+        <div class="help">Книга в електронній формі реєструється на підставі рапорту начальника
+          служби забезпечення (п. 7 розд. II Інструкції).</div></div>
+      <div class="field"><label>Відповідає за стан обліку (або проводить звірку)</label>
+        <select name="resp"><option value="">—</option>
+          {% for pid, title in persons %}<option value="{{ pid }}" {% if pid == form.resp %}selected{% endif %}>{{ title }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Безпосередньо веде облік (або з ким звірка)</label>
+        <select name="keeper"><option value="">—</option>
+          {% for pid, title in persons %}<option value="{{ pid }}" {% if pid == form.keeper %}selected{% endif %}>{{ title }}</option>{% endfor %}
+        </select></div>
+    </div>
+  </details>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Показати</button>
+    {% if report %}
+    <a class="btn" href="{{ url_for('reports.summary_xlsx', **xlsx_args) }}">Зберегти в Excel для друку</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if error %}<div class="banner banner-error">{{ error }}</div>{% endif %}
+
+{% if report %}
+<p><b>{{ form.book }}</b>, звітний період {{ fmt_date(form['from']) }} – {{ fmt_date(form.to) }}</p>
+{% if rows %}
+<div class="table-wrap">
+<table class="grid lines">
+  <thead>
+    <tr><th>№ з/п</th><th>Найменування військового майна</th><th>Одиниця виміру</th>
+      <th class="num">Надійшло</th><th class="num">Вибуло</th><th class="num">Наявне на {{ fmt_date(form.to) }}</th></tr>
+    <tr class="col-nums"><th>1</th><th>2</th><th>3</th><th class="num">4</th><th class="num">5</th><th class="num">6</th></tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td>{{ r.n }}</td><td>{{ r.name }}</td><td>{{ r.uom }}</td>
+      <td class="num">{{ r['in'] }}</td><td class="num">{{ r.out }}</td><td class="num"><b>{{ r.end }}</b></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted">Наявне = що було на початок періоду + надійшло − вибуло. Видача й повернення
+  всередині обраної книги (наприклад, зі служби військовослужбовцю того ж підрозділу) не є ні
+  надходженням, ні вибуттям. Сторновані документи в оборотах не враховуються.</p>
+{% else %}
+<p class="muted">За цей період руху не було і майна в наявності немає.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

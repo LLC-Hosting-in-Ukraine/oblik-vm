@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Звіти — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Звіти</h1>
+<div class="cards">
+  <a class="card" href="{{ url_for('reports.stock') }}">
+    <div class="card-title">Залишки на дату</div>
+    <div class="card-text">Що є в наявності: уся частина, МВО, склад чи підрозділ, окрема особа.
+      Можна зберегти в Excel.</div></a>
+  <a class="card" href="{{ url_for('reports.items') }}">
+    <div class="card-title">Картка руху одиниці</div>
+    <div class="card-text">Повна історія конкретного зразка за заводським або інвентарним номером:
+      звідки прийшов, кому передавався, де зараз.</div></a>
+  <a class="card" href="{{ url_for('reports.summary') }}">
+    <div class="card-title">Узагальнююча відомість (дод. 1)</div>
+    <div class="card-text">Підсумки за звітний період: скільки надійшло, вибуло і є в наявності
+      по кожному найменуванню. Роздруковується і підписується замість підсумків у паперовій книзі.</div></a>
+  <a class="card" href="{{ url_for('reports.journal') }}">
+    <div class="card-title">Книга реєстрації документів (дод. 2)</div>
+    <div class="card-text">Усі облікові документи за рік по порядку реєстраційних номерів —
+      для друку книги реєстрації та руху облікових документів.</div></a>
+</div>
+{% endblock %}

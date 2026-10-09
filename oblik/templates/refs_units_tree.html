@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}{{ ref.title }} — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('refs.index') }}">Довідники</a> /</p>
+<div class="page-head">
+  <h1>{{ ref.title }}</h1>
+  <a class="btn btn-primary" href="{{ url_for('refs.create', kind=ref.kind) }}">Додати {{ ref.item_title }}</a>
+</div>
+
+<form class="toolbar" method="get">
+  <input name="q" value="{{ q }}" placeholder="Пошук…">
+  <label class="check"><input type="checkbox" name="inactive" value="1"
+         {% if show_inactive %}checked{% endif %} onchange="this.form.submit()"> показати неактивні</label>
+  <button class="btn" type="submit">Знайти</button>
+  <span class="muted"><span class="badge badge-posted">місце обліку</span>{{ hint('Місце обліку') }} —
+    тут рахуються залишки і є МВО</span>
+</form>
+
+{% if nodes %}
+<ul class="tree">
+  {% for n in nodes %}
+  <li class="tree-node{% if not n.active %} inactive{% endif %}{% if n.accounting %} accounting{% endif %}">
+    <span class="tree-guides">{% for last in n.guides[1:-1] %}<span class="g{{ ' empty' if last }}"></span>{% endfor %}{% if n.depth %}<span class="g {{ 'last' if n.guides[-1] else 'mid' }}"></span>{% endif %}</span>
+    <span class="tree-body">
+      <a class="tree-name" href="{{ url_for('refs.edit', kind='units', id_=n.id) }}">{{ n.name }}</a>
+      {% if n.short_name %}<span class="muted">({{ n.short_name }})</span>{% endif %}
+      <span class="tag">{{ n.kind }}</span>
+      {% if n.accounting %}<span class="badge badge-posted">місце обліку</span>
+        <span class="tree-mvo">МВО: {{ n.mvo or '— не вказано' }}</span>{% endif %}
+      {% if n.persons %}<span class="muted">· осіб: {{ n.persons }}</span>{% endif %}
+      <span class="tree-actions">
+        {% if n.accounting %}<a href="{{ url_for('reports.stock', scope='u:%d' % n.id) }}">залишки</a>{% endif %}
+        <a href="{{ url_for('refs.create', kind='units', parent_id=n.id) }}" title="Додати підлеглий підрозділ">+ підлеглий</a>
+      </span>
+    </span>
+  </li>
+  {% endfor %}
+</ul>
+<p class="muted">Майно рахується лише в місцях обліку. Майно, видане військовослужбовцям, рахується
+  за тим місцем обліку, яке його видало, хоч би в якому підрозділі вони числилися.</p>
+{% else %}
+<p class="muted">Записів ще немає. Почніть з військової частини (юридичної особи), потім додавайте
+  підлеглі: частини, служби, склади, роти. Приклад — на сторінці
+  <a href="{{ url_for('main.start') }}">«Початок роботи»</a>.</p>
+{% endif %}
+{% endblock %}

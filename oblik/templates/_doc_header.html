@@ -1,0 +1,215 @@
+{% from "_help.html" import hint %}
+{# Реквізити документа: звідки/куди, дати, підстава. Використовується при створенні й редагуванні. #}
+{% macro place_select(name, options, value) %}
+  <select name="{{ name }}" id="f-{{ name }}" required>
+    <option value=""></option>
+    {% for group, opts in options %}
+      <optgroup label="{{ group }}">
+        {% for code, title in opts %}
+          <option value="{{ code }}" {% if value == code %}selected{% endif %}>{{ title }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+<div class="form-grid">
+  <div class="field">
+    <label for="f-from_place">{% if doc_type == 'order' %}Вантажовідправник (хто видає){% elif doc_type == 'condition' %}Місце обліку (де лежить майно){% else %}Звідки{% endif %}</label>
+    {% if fixed == 'from' %}<div class="fixed-place">{{ fixed_title }}</div>
+    {% else %}{{ place_select('from_place', from_options, values.from_place) }}{% endif %}
+  </div>
+  <div class="field">
+    <label for="f-to_place">{% if doc_type == 'order' %}Вантажоодержувач (кому){% else %}Куди{% endif %}</label>
+    {% if fixed == 'to' %}<div class="fixed-place">{{ fixed_title }}</div>
+    {% else %}{{ place_select('to_place', to_options, values.to_place) }}{% endif %}
+    {% if doc_type in ('transfer', 'receipt', 'opening') %}
+      <div class="help">Щоб видати майно військовослужбовцю в користування — оберіть його в групі
+        «Особи». Видане рахуватиметься за місцем «Звідки».{{ hint('Видане в користування') }}</div>
+    {% endif %}
+  </div>
+
+  {% if doc %}
+  <div class="field">
+    <label for="f-reg_no">Реєстраційний №{{ hint('Реєстраційний номер') }}</label>
+    <input id="f-reg_no" name="reg_no" class="num" value="{{ values.reg_no }}" inputmode="numeric">
+  </div>
+  <div class="field">
+    <label for="f-doc_no">Номер документа</label>
+    <input id="f-doc_no" name="doc_no" value="{{ values.doc_no }}">
+    <div class="help">Зазвичай збігається з реєстраційним. Можна дописати, наприклад, «15/ТЗО».</div>
+  </div>
+  {% endif %}
+
+  <div class="field">
+    <label for="f-doc_date">Дата документа</label>
+    <input id="f-doc_date" type="date" name="doc_date" value="{{ values.doc_date }}" required>
+  </div>
+  <div class="field">
+    <label for="f-op_date">Дата операції{{ hint('Дата операції') }}</label>
+    <input id="f-op_date" type="date" name="op_date" value="{{ values.op_date }}">
+    <div class="help">Порожня — така сама, як дата документа.</div>
+  </div>
+
+  <div class="field wide">
+    <label for="f-basis">Підстава{{ hint('Підстава') }}</label>
+    <input id="f-basis" name="basis" value="{{ values.basis or '' }}"
+           placeholder="Наприклад: наряд № 47 від 04.08.2026; наказ командира № 123 від …">
+  </div>
+
+  {% if order_options is not none %}
+  <div class="field wide">
+    <label for="f-order_id">За нарядом{{ hint('Виконання наряду') }}</label>
+    <select id="f-order_id" name="order_id">
+      <option value="">— без наряду —</option>
+      {% for oid, title in order_options %}
+        <option value="{{ oid }}" {% if values.order_id == oid %}selected{% endif %}>{{ title }}</option>
+      {% endfor %}
+    </select>
+    <div class="help">Якщо майно видаєте (приймаєте) за нарядом — оберіть його: документ зарахується
+      у виконання наряду. У списку — підписані й ще не виконані наряди. Порожня «Підстава»
+      заповниться номером наряду.</div>
+  </div>
+  {% endif %}
+
+  <div class="field">
+    <label for="f-service_id">Служба забезпечення</label>
+    <select id="f-service_id" name="service_id">
+      <option value=""></option>
+      {% for oid, title in service_options %}
+        <option value="{{ oid }}" {% if values.service_id == oid %}selected{% endif %}>{{ title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if doc_type != 'condition' %}
+  <div class="field">
+    <label for="f-recipient_person_id">Відповідальний одержувач</label>
+    <select id="f-recipient_person_id" name="recipient_person_id">
+      <option value=""></option>
+      {% for oid, title in person_options %}
+        <option value="{{ oid }}" {% if values.recipient_person_id == oid %}selected{% endif %}>{{ title }}</option>
+      {% endfor %}
+    </select>
+    <div class="help">Кому доручено отримати майно (для накладної).</div>
+  </div>
+  <div class="field">
+    <label for="f-valid_until">Дійсний до</label>
+    <input id="f-valid_until" type="date" name="valid_until" value="{{ values.valid_until or '' }}">
+  </div>
+  {% endif %}
+  <div class="field wide">
+    <label for="f-note">Примітка</label>
+    <input id="f-note" name="note" value="{{ values.note or '' }}">
+  </div>
+  {% if doc_type == 'order' %}
+  <div class="field wide"><div class="help"><b>Наряд{{ hint('Наряд') }}:</b> «Дійсний до» — строк дії наряду.
+    Відправник і одержувач можуть бути вашими місцями обліку або іншими частинами (контрагентами).
+    Рядки — що саме видати; заводські номери вказують в акті, оформленому за нарядом.</div></div>
+  {% set labels = {'transport_kind': 'Вид транспорту', 'transport_no': 'Номер транспорту',
+                   'transport_doc_name': 'Найменування транспортного документа',
+                   'transport_doc_no': 'Номер транспортного документа'} %}
+  {% for key, label in labels.items() %}
+  <div class="field">
+    <label for="f-x_{{ key }}">{{ label }}</label>
+    <input id="f-x_{{ key }}" name="x_{{ key }}" value="{{ (values.extra or {}).get(key, '') }}">
+  </div>
+  {% endfor %}
+  <div class="field wide">
+    <label for="f-x_dispatch_order">Порядок відправлення</label>
+    <input id="f-x_dispatch_order" name="x_dispatch_order" value="{{ (values.extra or {}).get('dispatch_order', '') }}"
+           placeholder="Належність транспорту, кількість транспортних одиниць, строки відправлення">
+  </div>
+  <div class="field">
+    <label for="f-x_guard_term">Строк прибуття варти з приймальником</label>
+    <input id="f-x_guard_term" name="x_guard_term" value="{{ (values.extra or {}).get('guard_term', '') }}">
+  </div>
+  <div class="field">
+    <label for="f-x_guard_unit">Варта від військової частини</label>
+    <input id="f-x_guard_unit" name="x_guard_unit" value="{{ (values.extra or {}).get('guard_unit', '') }}">
+  </div>
+  {% endif %}
+  {% if doc_type == 'condition' %}
+  {% set ex = values.extra or {} %}
+  {% macro person_select(name, current) %}
+    <select name="{{ name }}">
+      <option value=""></option>
+      {% for oid, title in person_options %}
+        <option value="{{ oid }}" {% if current == oid %}selected{% endif %}>{{ title }}</option>
+      {% endfor %}
+    </select>
+  {% endmacro %}
+  <div class="field wide"><div class="help"><b>Акт якісного стану{{ hint('Акт якісного стану') }}:</b>
+    «Звідки» — місце обліку, де лежить майно. Затверджує командир (з налаштувань). Комісія й висновки
+    друкуються в акті; комісію програма запам'ятає для наступних актів.</div></div>
+  <div class="field wide">
+    <label for="f-x_group_name">Найменування майна в заголовку акта</label>
+    <input id="f-x_group_name" name="x_group_name" value="{{ ex.get('group_name', '') }}"
+           placeholder="Напр.: технічних засобів охорони">
+  </div>
+  <div class="field">
+    <label>Голова комісії</label>
+    {{ person_select('x_commission_head', ex.get('commission_head')) }}
+  </div>
+  <div class="field">
+    <label>Члени комісії</label>
+    <div id="members">
+      {% for m in (ex.get('commission_members') or []) + [None] %}
+        <div class="member">{{ person_select('x_commission_members', m) }}</div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-small" id="member-add">+ ще член комісії</button>
+  </div>
+  <div class="field wide">
+    <label for="f-x_commission_conclusion">Висновок комісії</label>
+    <textarea id="f-x_commission_conclusion" name="x_commission_conclusion" rows="3"
+              placeholder="Напр.: комісія визначила, що майно в рядках 1–5 потребує об'єднання в єдину систему «…» та оприбуткування встановленим порядком.">{{ ex.get('commission_conclusion', '') }}</textarea>
+  </div>
+  <div class="field">
+    <label>Старший начальник (висновок)</label>
+    {{ person_select('x_senior_person', ex.get('senior_person')) }}
+  </div>
+  <div class="field wide">
+    <label for="f-x_senior_conclusion">Висновок старшого начальника</label>
+    <textarea id="f-x_senior_conclusion" name="x_senior_conclusion" rows="2"
+              placeholder="Напр.: доцільне об'єднання в єдину систему «…».">{{ ex.get('senior_conclusion', '') }}</textarea>
+  </div>
+  <script>
+  document.getElementById('member-add').onclick = function () {
+    var box = document.getElementById('members');
+    var row = box.lastElementChild.cloneNode(true);
+    row.querySelector('select').selectedIndex = 0;
+    box.appendChild(row);
+  };
+  </script>
+  {% endif %}
+  {% if printed %}
+  <div class="field wide copies-field">
+    <label>Примірники{{ hint('Примірники') }}</label>
+    <input type="hidden" name="copies_block" value="1">
+    <input type="hidden" name="copies_auto" value="{{ (values.copies_auto or []) | tojson | forceescape }}">
+    <ol class="copies" id="copies">
+      {% for c in (values.copies or []) %}
+      <li><input name="copy" list="copy-options" value="{{ c }}"><button type="button" class="btn btn-small" data-copy-remove title="Прибрати примірник">×</button></li>
+      {% endfor %}
+    </ol>
+    <button type="button" class="btn btn-small" id="copy-add">+ додати примірник</button>
+    <datalist id="copy-options">{% for o in values.copy_options or [] %}<option value="{{ o }}">{% endfor %}</datalist>
+    <div class="help">{% if values.copies %}Кожен примірник — для кого. Можна обрати зі списку або вписати своє
+      (наприклад, «у справу»). Друкується внизу документа: «Виконано у {{ values.copies|length }} примірниках».
+      {% else %}За замовчуванням — 2 примірники: тому, хто передає, і тому, хто приймає. Список
+      з'явиться після «Далі», його можна змінити.{% endif %}</div>
+  </div>
+  <script>
+  (function () {
+    var list = document.getElementById('copies');
+    function bind(li) { li.querySelector('[data-copy-remove]').onclick = function () { li.remove(); }; }
+    Array.prototype.forEach.call(list.children, bind);
+    document.getElementById('copy-add').onclick = function () {
+      var li = document.createElement('li');
+      li.innerHTML = '<input name="copy" list="copy-options"><button type="button" class="btn btn-small" data-copy-remove title="Прибрати примірник">×</button>';
+      list.appendChild(li); bind(li); li.querySelector('input').focus();
+    };
+  })();
+  </script>
+  {% endif %}
+</div>

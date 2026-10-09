@@ -1,0 +1,58 @@
+{% from "_help.html" import hint %}
+{# Поле форми за описом Field (oblik/refs.py). #}
+{% macro field_row(f, record, errors, options, form_value) %}
+  {% set value = record.get(f.name) %}
+  {% set err = errors.get(f.name) %}
+  <div class="field{% if err %} has-error{% endif %}">
+    {% if f.kind == 'bool' %}
+      <label class="check">
+        <input type="checkbox" name="{{ f.name }}" value="1" {% if value %}checked{% endif %}>
+        {{ f.label }}
+      </label>{% if f.term %}{{ hint(f.term) }}{% endif %}
+    {% else %}
+      <label for="f-{{ f.name }}">{{ f.label }}{% if f.required %} <span class="req">*</span>{% endif %}{% if f.term %}{{ hint(f.term) }}{% endif %}</label>
+
+      {% if f.kind == 'textarea' %}
+        <textarea id="f-{{ f.name }}" name="{{ f.name }}" rows="2">{{ form_value(f, value) }}</textarea>
+
+      {% elif f.kind == 'choice' %}
+        <select id="f-{{ f.name }}" name="{{ f.name }}">
+          {% if not f.required %}<option value=""></option>{% endif %}
+          {% for code, title in f.choices %}
+            <option value="{{ code }}" {% if value == code %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select>
+
+      {% elif f.kind == 'fk' %}
+        <select id="f-{{ f.name }}" name="{{ f.name }}">
+          <option value=""></option>
+          {% for oid, title in options.get(f.name, []) %}
+            <option value="{{ oid }}" {% if value == oid %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select>
+
+      {% elif f.kind == 'roles' %}
+        <div class="checks" id="f-{{ f.name }}">
+          {% for code, title in f.choices %}
+            <label class="check">
+              <input type="checkbox" name="{{ f.name }}" value="{{ code }}"
+                     {% if value and code in value %}checked{% endif %}> {{ title }}
+            </label>
+          {% endfor %}
+        </div>
+
+      {% else %}
+        <input id="f-{{ f.name }}" name="{{ f.name }}" value="{{ form_value(f, value) }}"
+               {% if f.kind in ('int', 'money') %}inputmode="decimal" class="num"{% endif %}
+               {% if f.suggest %}list="dl-{{ f.name }}"{% endif %} autocomplete="off">
+        {% if f.suggest %}
+          <datalist id="dl-{{ f.name }}">
+            {% for s in f.suggest %}<option value="{{ s }}">{% endfor %}
+          </datalist>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+    {% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+    {% if err %}<div class="error">{{ err }}</div>{% endif %}
+  </div>
+{% endmacro %}

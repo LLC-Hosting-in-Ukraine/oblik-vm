@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Шаблони Word — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /</p>
+<h1>Шаблони документів Word</h1>
+
+<p>Паперові документи програма заповнює за шаблонами Word. Їх можна змінити під свою частину
+  (шрифт, відступи, додаткові рядки, підписи) — <b>не змінюйте лише поля у фігурних дужках</b>
+  на кшталт <code>{{ '{{ doc_no }}' }}</code>: на їхнє місце програма підставляє дані.</p>
+
+<ol class="steps">
+  <li>Сформуйте документ хоча б раз — у папці шаблонів з'явиться копія стандартного шаблону.</li>
+  <li>Відкрийте його у Word з папки <code>{{ folder }}</code>, змініть оформлення і збережіть
+    (у форматі .docx, з тією самою назвою).</li>
+  <li>Наступні документи програма заповнить уже за вашим шаблоном. Зіпсували — натисніть
+    «Повернути стандартний»: ваш варіант збережеться поруч з позначкою .bak.</li>
+</ol>
+<p class="muted">Готові документи також зберігаються в папці <code>{{ output }}</code> (за роками).</p>
+
+<h2>Шаблони</h2>
+<table class="grid history">
+  <thead><tr><th>Документ</th><th>Файл</th><th>Стан</th><th></th></tr></thead>
+  <tbody>
+  {% for f in forms %}
+    <tr>
+      <td>{{ f.form.title }} ({{ f.form.appendix }})</td>
+      <td><code>{{ f.form.file }}</code></td>
+      <td>{% if f.status == 'missing' %}стандартний (копію ще не створено)
+        {% elif f.status == 'modified' %}<b>змінений вами</b><div class="help">Новіші версії програми можуть
+          мати покращений стандартний шаблон — він не встановлюється замість вашого сам.
+          Натисніть «Повернути стандартний», щоб узяти його (ваш збережеться як .bak).</div>
+        {% elif f.status == 'old_standard' %}стандартний попередньої версії — оновиться сам при наступному формуванні
+        {% else %}стандартний{% endif %}</td>
+      <td>{% if f.exists %}
+        <form method="post" onsubmit="return confirm('Повернути стандартний шаблон? Ваш змінений збережеться поруч як .bak.');">
+          <input type="hidden" name="form" value="{{ f.form.code }}">
+          <button class="btn btn-small" type="submit">Повернути стандартний</button>
+        </form>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Поля, які можна вставляти в шаблон</h2>
+<p class="muted">Пишуться у подвійних фігурних дужках: <code>{{ '{{ unit_name }}' }}</code>.
+  Рядки таблиці повторюються між <code>{{ '{%tr for l in lines %}' }}</code> і
+  <code>{{ '{%tr endfor %}' }}</code> — кожен у своєму рядку таблиці.</p>
+<table class="grid history">
+  <thead><tr><th>Поле</th><th>Що підставляється</th></tr></thead>
+  <tbody>
+  {% for name, text in fields %}
+    <tr><td><code>{{ name }}</code></td><td>{{ text }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
