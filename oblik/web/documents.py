@@ -1,6 +1,7 @@
 """Сторінки документів: журнал, «Що сталося?», чернетка, проведення, сторно."""
 from __future__ import annotations
 
+import base64
 import json
 from datetime import date
 
@@ -9,8 +10,8 @@ from io import BytesIO
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from werkzeug.datastructures import MultiDict
 
-from .. import (balances, condition, documents, docx_out, help, importer, locations, orders, pdf_out, refs,
-                settings)
+from .. import (balances, condition, documents, docx_out, help, importer, locations, oborotka, orders, pdf_out,
+                refs, settings)
 from ..catalog import create_nomenclature, find_nomenclature, find_or_create_item
 from ..documents import CATEGORY_TITLES, DOC_TYPES, STATUS_TITLES, DocumentError
 from ..textutil import format_money, format_qty, parse_money, parse_qty
@@ -209,6 +210,10 @@ def import_opening():
     if request.method == "POST":
         upload = request.files.get("file")
         data = upload.read() if upload else b""
+        op_date = form.get("op_date") or date.today().isoformat()
+        if data and oborotka.is_oborotka(data):   # оборотка з бухгалтерії — крок 2: чиє майно і куди
+            return _oborotka_page(conn, data, op_date, default_place=form.get("to_place", ""))
+        to_loc = None
         try:
             to_loc = place_to_location(conn, form.get("to_place", ""))
         except locations.LocationError as exc:
@@ -229,6 +234,90 @@ def import_opening():
     values = {"to_place": form.get("to_place", ""), "op_date": form.get("op_date") or date.today().isoformat()}
     return render_template("documents_import.html", errors=errors, values=values,
                            place_options=place_options(conn, ("u", "p")))
+
+
+def mvo_place_guess(conn, mvo_name: str) -> str:
+    """МВО з оборотки («Прізвище Ім'я По батькові») → місце обліку, де вона МВО (код «u:…»).
+    Порожньо, якщо особи в довіднику немає або вона не МВО жодного місця обліку."""
+    words = mvo_name.lower().split()
+    if len(words) < 2:
+        return ""
+    for p in conn.execute("SELECT id, last_name, first_name, middle_name FROM persons"):
+        full = [w.lower() for w in (p["last_name"], p["first_name"], p["middle_name"] or "") if w]
+        if full[:2] == words[:2] and (len(words) < 3 or len(full) < 3 or full[2] == words[2]):
+            row = conn.execute("SELECT id FROM units WHERE is_accounting = 1 AND is_active = 1 "
+                               "AND mvo_person_id = ? ORDER BY id LIMIT 1", (p["id"],)).fetchone()
+            if row:
+                return f"u:{row['id']}"
+    return ""
+
+
+def _oborotka_page(conn, data: bytes, op_date: str, errors=None, chosen=(), places=None, classes=None,
+                   categories=None, default_place: str = ""):
+    ob = oborotka.read(data)
+    if ob.errors:
+        return render_template("documents_import.html", errors=ob.errors,
+                               values={"to_place": default_place, "op_date": op_date},
+                               place_options=place_options(conn, ("u", "p")))
+    if places is None:   # перший показ: кожне МВО — на її місце обліку, якщо його знайдено
+        guess = {str(i): mvo_place_guess(conn, m.name) for i, m in enumerate(ob.mvos)}
+        places = {i: c for i, c in guess.items() if c}
+        if places:
+            chosen = set(places)
+    return render_template("documents_import_oborotka.html", ob=ob, errors=errors or [],
+                           file_b64=base64.b64encode(data).decode("ascii"), op_date=op_date,
+                           chosen=set(chosen), places=places or {}, classes=classes or {},
+                           categories=categories or {}, category_options=sorted(CATEGORY_TITLES.items()),
+                           default_place=default_place, place_options=place_options(conn, ("u", "p")),
+                           class_options=refs.ACCOUNTING_CLASSES, fmt_date=documents.fmt_date,
+                           page_hint=help.PAGE_HINTS["documents.import_oborotka"])
+
+
+@bp.post("/documents/import/oborotka")
+def import_oborotka():
+    """Крок 2 імпорту оборотки: обрані МВО → місця обліку, рахунки → класи; створити чернетки."""
+    conn = get_db()
+    form = request.form
+    try:
+        data = base64.b64decode(form.get("file_b64", ""), validate=True)
+    except ValueError:
+        abort(400)
+    op_date = form.get("op_date") or date.today().isoformat()
+    ob = oborotka.read(data)
+    chosen = form.getlist("mvo")
+    places = {i: form.get(f"place_{i}", "") for i in chosen}
+    classes = {a.code: (form.get(f"cls_{a.code}") or a.accounting_class,
+                        a.all_one and form.get(f"serial_{a.code}") == "1") for a in ob.accounts}
+    categories = {a.code: int(form.get(f"cat_{a.code}") or 1) for a in ob.accounts
+                  if (form.get(f"cat_{a.code}") or "1").isdigit() and int(form.get(f"cat_{a.code}") or 1) in CATEGORY_TITLES}
+    errors: list[str] = []
+    plan_places: dict[str, int] = {}
+    for i in chosen:
+        if not i.isdigit() or int(i) >= len(ob.mvos):
+            continue
+        m = ob.mvos[int(i)]
+        try:
+            plan_places[m.name] = place_to_location(conn, places[i])
+        except locations.LocationError:
+            errors.append(f"Оберіть, куди внести майно «{m.name or 'без МВО'}»")
+    if not errors:
+        try:
+            res = oborotka.create_drafts(conn, data, oborotka.Plan(plan_places, classes, op_date, categories))
+        except DocumentError as exc:
+            errors = exc.errors
+        else:
+            msg = (f"Створено чернеток: {len(res.doc_ids)}, рядків — {res.lines}"
+                   + (f", нових найменувань — {res.new_names}" if res.new_names else "") + ". "
+                   "Категорію проставлено за рахунками — виправте в чернетці, де інакше, і проведіть.")
+            if res.rounding_rows:
+                msg += (f" Ціни округлено до копійок: у {res.rounding_rows} рядках сума відрізняється від "
+                        f"бухгалтерської, разом на {format_money(int(res.rounding * 100))} грн.")
+            flash(msg, "ok")
+            if len(res.doc_ids) > 1:
+                return redirect(url_for("documents.index", status="draft", type="opening"))
+            return redirect(url_for("documents.edit", doc_id=res.doc_ids[0]))
+    return _oborotka_page(conn, data, op_date, errors=errors, chosen=chosen, places=places, classes=classes,
+                           categories=categories)
 
 
 @bp.route("/documents/new/<doc_type>", methods=["GET", "POST"])
@@ -555,6 +644,9 @@ def edit(doc_id):
                                              order=doc["doc_type"] == "order")
         if doc["doc_type"] == "condition":   # друга таблиця — «Оприбуткувати»
             in_lines, in_errors = parse_lines(conn, Prefixed(request.form, "in_"), outgoing=False)
+            out_total = sum(balances.value_kop(ln["qty_m"], ln["price_kop"]) for ln in new_lines)
+            if len(in_lines) == 1 and not in_lines[0]["price_kop"] and in_lines[0]["qty_m"] == 1000:
+                in_lines[0]["price_kop"] = out_total   # нова система — за сумою списаного
             new_lines += [{**ln, "direction": "in"} for ln in in_lines]
             line_errors += [f"Оприбуткувати, р{e[1:]}" for e in in_errors]
         errors += line_errors
@@ -606,7 +698,7 @@ def edit(doc_id):
         situation=help.SITUATION_BY_CODE[doc["doc_type"]], doc_type=doc["doc_type"],
         type_title=DOC_TYPES[doc["doc_type"]].title, outgoing=outgoing, rows=rows, in_rows=in_rows,
         stock=stock_options(conn, doc, doc_lines) if outgoing else [],
-        nomenclature=_nomenclature_json(conn),
+        nomenclature=_nomenclature_json(conn, doc),
         uoms=refs.UOMS, classes=refs.ACCOUNTING_CLASSES,
         categories=CATEGORY_TITLES,
         totals=_totals(doc_lines),
@@ -621,11 +713,27 @@ def edit(doc_id):
     )
 
 
-def _nomenclature_json(conn) -> list[dict]:
-    """Найменування для підказок у рядках: підпис, од. виміру, поштучний облік."""
+def _price_text(kop: int) -> str:
+    return f"{kop // 100},{kop % 100:02d}"
+
+
+def _nomenclature_json(conn, doc=None) -> list[dict]:
+    """Найменування для підказок у рядках: підпис, од. виміру, поштучний облік і те, що
+    підставляється при виборі: наявне в місці «звідки» (ціна, категорія, кількість) або,
+    якщо там нічого немає, остання відома ціна й категорія."""
     labels = refs.Labels(conn)
+    stock: dict[int, list[dict]] = {}
+    if doc is not None and locations.kind(conn, doc["from_location_id"]) in locations.INTERNAL_KINDS:
+        rows = balances.balances(conn, [doc["from_location_id"]], doc["op_date"])
+        for r in sorted(rows, key=lambda r: -r["qty_m"]):
+            if r["qty_m"] > 0:
+                stock.setdefault(r["nomenclature_id"], []).append(
+                    {"price": _price_text(r["price_kop"]), "cat": r["category"], "qty": format_qty(r["qty_m"])})
+    last: dict[int, dict] = {}
+    for r in conn.execute("SELECT nomenclature_id, price_kop, category FROM movements ORDER BY op_date, id"):
+        last[r["nomenclature_id"]] = {"price": _price_text(r["price_kop"]), "cat": r["category"]}
     return [{"id": r["id"], "label": labels.get("nomenclature", r["id"]), "uom": r["uom"],
-             "serial": bool(r["serial_tracked"])}
+             "serial": bool(r["serial_tracked"]), "stock": stock.get(r["id"], []), "last": last.get(r["id"])}
             for r in conn.execute("SELECT id, uom, serial_tracked FROM nomenclature "
                                   "WHERE is_active = 1 ORDER BY name COLLATE UK")]
 
@@ -836,6 +944,21 @@ def reverse(doc_id):
         return redirect(url_for("documents.edit", doc_id=doc_id))
     flash("Документ сторновано. Тепер, за потреби, оформіть правильний документ.", "ok")
     return redirect(url_for("documents.edit", doc_id=storno_id))
+
+
+@bp.post("/documents/<int:doc_id>/correct")
+def correct(doc_id):
+    """Виправити документ: сторно + чернетка-копія, у якій правлять дату чи рядки."""
+    conn = get_db()
+    try:
+        _, new_id = documents.correct(conn, doc_id)
+    except DocumentError as exc:
+        for e in exc.errors:
+            flash(e, "error")
+        return redirect(url_for("documents.edit", doc_id=doc_id))
+    flash("Старий документ сторновано, а його копію створено як чернетку. Виправте в ній, що потрібно "
+          "(дату, кількість, рядки) і проведіть — нічого вносити заново не треба.", "ok")
+    return redirect(url_for("documents.edit", doc_id=new_id))
 
 
 # --- Документи Word ------------------------------------------------------------------

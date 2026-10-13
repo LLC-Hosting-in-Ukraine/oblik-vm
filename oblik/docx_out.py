@@ -277,7 +277,9 @@ def context(conn: sqlite3.Connection, doc_id: int, form_code: str | None = None)
         total_qty += ln["qty_m"]
         req = ln["qty_requested_m"] if ln["qty_requested_m"] is not None else ln["qty_m"]
         lines.append({
-            "n": n, "name": nom["name"], "code": nom["code"] or "",
+            # У наряді код номенклатури не друкуємо: майна може не бути в базі, а коди в базах
+            # номенклатур різних бухгалтерій можуть не збігатися.
+            "n": n, "name": nom["name"], "code": "" if doc["doc_type"] == "order" else (nom["code"] or ""),
             "batch": ln["batch_no"] or "",
             "year_made": (item["year_made"] or "") if item else "",
             "passport_no": (item["passport_no"] or "") if item else "",

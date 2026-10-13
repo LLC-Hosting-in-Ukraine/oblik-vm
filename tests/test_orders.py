@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from oblik import balances, documents, docx_out, locations, registers
+from oblik import balances, documents, docx_out, locations, orders, registers
 from oblik.documents import DocumentError
 from tests.test_docx import text_of
 from tests.test_documents_web import add, doc_id_from, env, open_db  # noqa: F401 — фікстура env
@@ -96,3 +96,34 @@ def test_order_validation(env):
     assert documents.validate(conn, doc2) == []
     documents.post(conn, doc2)
     conn.close()
+
+
+def test_order_sides_match_for_subunit_of_sender(env):
+    """Наряд «від частини», видає її підрозділ — сторони вважаються збіжними."""
+    storage, _, ids = env
+    conn = open_db(storage)
+    part = add(conn, "units", name="Частина К", kind="subunit", is_accounting=1, mvo_person_id=ids["mvo"])
+    sub = add(conn, "units", name="Служба", kind="service", parent_id=part, is_accounting=1,
+              mvo_person_id=ids["mvo"])
+    ext = locations.for_counterparty(conn, ids["ext"])
+    order = documents.create_draft(conn, "order", locations.for_unit(conn, part), ext, doc_date="2026-09-14")
+    documents.set_lines(conn, order, [{"nomenclature_id": ids["cable"], "qty_m": 5000, "price_kop": 100,
+                                       "category": 1}])
+    documents.post(conn, order)
+    inside = documents.create_draft(conn, "dispatch", locations.for_unit(conn, sub), ext,
+                                    doc_date="2026-09-14", order_id=order)
+    outside = documents.create_draft(conn, "dispatch", locations.for_unit(conn, ids["wh"]), ext,
+                                     doc_date="2026-09-14", order_id=order)
+    assert not [w for w in orders.warnings(conn, inside) if "Сторони" in w]
+    assert [w for w in orders.warnings(conn, outside) if "Сторони" in w]
+
+
+def test_paper_title_uses_short_name(env):
+    """«Умовне найменування» підрозділу — у паперових документах; у програмі — повна назва."""
+    storage, _, ids = env
+    conn = open_db(storage)
+    unit = add(conn, "units", name="Служба тилового забезпечення", short_name="в/ч А0000",
+               kind="service", is_accounting=1, mvo_person_id=ids["mvo"])
+    loc = locations.for_unit(conn, unit)
+    assert locations.title(conn, loc) == "Служба тилового забезпечення"
+    assert locations.title(conn, loc, with_owner=False) == "в/ч А0000"

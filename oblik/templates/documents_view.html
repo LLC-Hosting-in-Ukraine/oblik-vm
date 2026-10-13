@@ -30,6 +30,25 @@
   {% if doc.status == 'posted' and not doc.reversed_by_id %}Зараховано у виконання наряду.{% endif %}</div>
 {% endif %}
 
+{% if doc.doc_type == 'order' and doc.status == 'posted' and execution %}
+<div class="banner banner-ok" id="next-step">
+  <strong>Що далі.</strong>
+  {% if execution.state == 'done' %}Наряд виконано повністю — більше нічого оформлювати не треба.
+  {% elif exec_type %}
+  Наряд підписано, але майно ним ще не передано: рух по обліку створює <b>документ за нарядом</b>
+  (накладна, а для основних засобів і запасів — ще й акт приймання-передачі: друкується з нього ж).
+  <form method="post" action="{{ url_for('documents.execute', doc_id=doc.id) }}" class="actions">
+    <button class="btn btn-primary" type="submit">Оформити передачу за нарядом (накладна / акт)</button>
+    <span class="muted">Крок 1: створиться чернетка з рядками наряду. Крок 2: перевірте її й проведіть.
+      Крок 3: у проведеного документа з'являться кнопки друку накладної й актів.</span>
+  </form>
+  {% else %}
+  Цей наряд виконують інші частини між собою — у вашій програмі документ про рух не оформлюється.
+  Коли повернуть виконаний примірник, відмітьте виконання внизу сторінки.
+  {% endif %}
+</div>
+{% endif %}
+
 {% if mvo_place %}
 <div class="banner banner-error"><strong>Можлива помилка:</strong> початкові залишки внесено на
   особу <b>{{ to_title }}</b>, тож програма вважає це майно виданим їй в особисте користування.
@@ -122,7 +141,7 @@
 {% if execution.state != 'done' %}
   {% if exec_type %}
   <form method="post" action="{{ url_for('documents.execute', doc_id=doc.id) }}" class="actions">
-    <button class="btn btn-primary" type="submit">Оформити {{ 'акт приймання' if exec_type == 'receipt' else 'накладну' }} за нарядом</button>
+    <button class="btn btn-primary" type="submit">Оформити {{ 'акт приймання' if exec_type == 'receipt' else 'передачу (накладна / акт)' }} за нарядом</button>
     <span class="muted">Буде створено чернетку з тими самими сторонами; рядки — те, що ще лишилося видати.</span>
   </form>
   {% else %}
@@ -204,6 +223,13 @@
     повернеться туди, звідки його взяли. Обидва документи лишаться в історії.
     Після цього оформіть правильний документ.</p>
   <p class="muted">Якщо майно з цього документа вже рухалося далі, спершу сторнуйте пізніші документи.</p>
+  <form method="post" action="{{ url_for('documents.correct', doc_id=doc.id) }}" class="actions"
+        onsubmit="return confirm('Сторнувати документ і створити його копію як чернетку для виправлення?');">
+    <button class="btn btn-primary" type="submit">Виправити: сторнувати й створити копію-чернетку</button>
+    <span class="muted">Найпростіший шлях, якщо помилка в даті, кількості чи рядках: старий документ
+      сторнується (датою його операції), а все, що було в ньому, з'являється в новій чернетці — виправте й проведіть.</span>
+  </form>
+  <p class="muted">Або тільки скасувати рух (без копії):</p>
   <form method="post" action="{{ url_for('documents.reverse', doc_id=doc.id) }}" class="form"
         onsubmit="return confirm('Сторнувати документ? Цю дію не можна скасувати.');">
     <div class="form-grid">

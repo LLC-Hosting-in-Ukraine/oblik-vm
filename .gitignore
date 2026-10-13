@@ -23,3 +23,6 @@ test_base/
 
 # PDF, які створює tools/word_check.vbs поруч із перевіреним .docx
 oblik/docx_templates/*.pdf
+
+# Журнали й скриншоти Playwright MCP
+.playwright-mcp/

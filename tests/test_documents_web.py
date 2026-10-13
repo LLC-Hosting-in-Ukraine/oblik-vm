@@ -245,3 +245,47 @@ def test_opening_to_mvo_person_warns(env):
     assert "Перевірте «Куди»" not in client.get(f"/documents/{doc_id_from(resp)}").get_data(as_text=True)
     resp = client.post("/documents/new/opening", data={"to_place": f"u:{ids['wh']}", "doc_date": "2026-10-01"})
     assert "Перевірте «Куди»" not in client.get(f"/documents/{doc_id_from(resp)}").get_data(as_text=True)
+
+
+def test_correct_button_makes_draft_copy(env):
+    storage, client, ids = env
+    conn = open_db(storage)
+    wh = locations.for_unit(conn, ids["wh"])
+    opening = documents.create_draft(conn, "opening", locations.system(conn, locations.OPENING), wh,
+                                     doc_date="2026-09-25", op_date="2026-09-25")
+    documents.set_lines(conn, opening, [{"nomenclature_id": ids["cable"], "qty_m": 5000,
+                                         "price_kop": 1000, "category": 1}])
+    documents.post(conn, opening)
+    conn.commit()
+    conn.close()
+
+    page = client.get(f"/documents/{opening}")
+    assert "Виправити: сторнувати" in page.get_data(as_text=True)
+    resp = client.post(f"/documents/{opening}/correct")
+    assert resp.status_code == 302
+    new_id = doc_id_from(resp)
+    conn = open_db(storage)
+    assert documents.get(conn, new_id)["status"] == "draft"
+    assert documents.get(conn, opening)["reversed_by_id"] is not None
+    conn.close()
+
+
+def test_line_hints_from_stock_and_last_price(env):
+    """У наряді при виборі найменування підставляються ціна й категорія з наявного залишку."""
+    from oblik.web.documents import _nomenclature_json
+    storage, client, ids = env
+    conn = open_db(storage)
+    wh = locations.for_unit(conn, ids["wh"])
+    ext = locations.for_counterparty(conn, ids["ext"])
+    opening = documents.create_draft(conn, "opening", locations.system(conn, locations.OPENING), wh,
+                                     doc_date="2026-09-13", op_date="2026-09-13")
+    documents.set_lines(conn, opening, [{"nomenclature_id": ids["cable"], "qty_m": 20000,
+                                         "price_kop": 145000, "category": 2}])
+    documents.post(conn, opening)
+    order = documents.create_draft(conn, "order", wh, ext, doc_date="2026-09-14")
+    conn.commit()
+    noms = {n["id"]: n for n in _nomenclature_json(conn, documents.get(conn, order))}
+    assert noms[ids["cable"]]["stock"] == [{"price": "1450,00", "cat": 2, "qty": "20"}]
+    assert noms[ids["cable"]]["last"] == {"price": "1450,00", "cat": 2}
+    assert noms[ids["cam"]]["stock"] == [] and noms[ids["cam"]]["last"] is None
+    assert b"window.NOMS" in client.get(f"/documents/{order}").data

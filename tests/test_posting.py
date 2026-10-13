@@ -376,3 +376,36 @@ def test_audit_records_document_life(w):
     actions = [r[0] for r in w.conn.execute(
         "SELECT action FROM audit_log WHERE entity = 'documents' ORDER BY id")]
     assert actions == ["create", "post", "create", "post", "reverse"]
+
+
+# --- Виправлення одним кроком, підказка про дату ------------------------------
+
+def test_correct_opening_date(w):
+    """Залишки внесено занадто пізньою датою: «виправити» = сторно + копія-чернетка."""
+    opening = w.doc("opening", w.opening, w.wh, [cable(10)], op_date="2026-09-25")
+    # Видати за 14.09 не можна — майна ще немає; у повідомленні є підказка про дату.
+    out = w.doc("transfer", w.wh, w.coy, [cable(4)], op_date="2026-09-14", post=False)
+    errors = documents.validate(w.conn, out)
+    assert errors and "лише 25.09.2026" in errors[0]
+
+    storno_id, new_id = documents.correct(w.conn, opening)
+    assert documents.get(w.conn, opening)["reversed_by_id"] == storno_id
+    assert documents.get(w.conn, storno_id)["op_date"] == "2026-09-25"
+    new = documents.get(w.conn, new_id)
+    assert new["status"] == "draft" and new["doc_type"] == "opening"
+    assert [(ln["qty_m"], ln["price_kop"]) for ln in documents.lines(w.conn, new_id)] == [(10_000, 1000)]
+
+    documents.update_draft(w.conn, new_id, doc_date="2026-09-13", op_date="2026-09-13")
+    documents.post(w.conn, new_id)
+    documents.post(w.conn, out)   # тепер 14.09 — є що видавати
+    assert w.qty(w.wh, w.cable) == 6_000
+    assert balances.balances(w.conn, [w.wh], "2026-09-13", w.cable)[0]["qty_m"] == 10_000
+
+
+def test_correct_blocked_when_moved_on(w):
+    receipt = w.doc("receipt", w.ext, w.wh, [cable(10)])
+    w.doc("transfer", w.wh, w.coy, [cable(7)], op_date="2026-10-02")
+    n = w.conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+    with pytest.raises(DocumentError):
+        documents.correct(w.conn, receipt)
+    assert w.conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == n

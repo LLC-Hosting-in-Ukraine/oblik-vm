@@ -31,19 +31,27 @@ def find_or_create_item(conn, nom_id: int, serial: str | None, inv: str | None) 
         raise ValueError("; ".join(exc.errors.values())) from None
 
 
-def find_nomenclature(conn, name: str) -> int | None:
-    """Найменування з довідника за вписаною назвою (або «назва [код]»), без урахування регістру."""
+def find_nomenclature(conn, name: str, code: str | None = None) -> int | None:
+    """Найменування з довідника за вписаною назвою (або «назва [код]»), без урахування регістру.
+    Не знайшли за назвою — за кодом номенклатури, якщо він у довіднику один (так не виходить
+    дубль, коли назву в довіднику вже виправили вручну)."""
     wanted = " ".join(name.split()).lower()
     for nom_id, label in refs.Labels(conn).map("nomenclature").items():
         if label.lower() == wanted:
             return nom_id
     row = conn.execute("SELECT id FROM nomenclature WHERE ulower(name) = ? ORDER BY is_active DESC, id",
                        (wanted,)).fetchone()
-    return row["id"] if row else None
+    if row:
+        return row["id"]
+    if code:
+        rows = conn.execute("SELECT id FROM nomenclature WHERE code = ?", (code.strip(),)).fetchall()
+        if len(rows) == 1:
+            return rows[0]["id"]
+    return None
 
 
 def create_nomenclature(conn, name: str, uom: str, accounting_class: str,
-                        serial_tracked: bool, code: str | None = None) -> int:
+                        serial_tracked: bool, code: str | None = None, account: str | None = None) -> int:
     """Нове найменування, вписане в рядку документа (із записом у журнал змін)."""
     name = " ".join(name.split())
     ref = refs.REFS["nomenclature"]
@@ -52,6 +60,7 @@ def create_nomenclature(conn, name: str, uom: str, accounting_class: str,
                   accounting_class=accounting_class if accounting_class in dict(refs.ACCOUNTING_CLASSES)
                   else "inventory",
                   serial_tracked=1 if serial_tracked else 0, code=code or values.get("code"),
+                  account=account or values.get("account"),
                   service_id=settings.load(conn)["default_service_id"])
     try:
         return refs.save(conn, ref, None, values)

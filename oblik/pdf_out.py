@@ -374,6 +374,17 @@ def act(ctx: dict, kind: str) -> bytes:
     return buf.getvalue()
 
 
+def _valid_and_copy(k, valid: str):
+    """«Дійсний до …» ліворуч, «Прим. № ____» праворуч — номер примірника пишуть від руки."""
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Table, TableStyle
+    t = Table([[k.p(valid), k.p("Прим. № ________", "right")]], colWidths=[12.0 * cm, 6.0 * cm])
+    t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0),
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+    return t
+
+
 def naryad(ctx: dict) -> bytes:
     """Наряд на видавання (приймання) військового майна, дод. 5. Як у частинах: книжковий А4,
     усе на одному аркуші (реквізити, графи 1–10, відправлення, упаковка), підпис командира
@@ -397,7 +408,7 @@ def naryad(ctx: dict) -> bytes:
 
     story = [k.p("Додаток 5 до Інструкції з обліку військового майна у Збройних Силах України "
                  "(пункт 6 розділу III)", "right_small"),
-             k.p(f"Дійсний до {ctx['valid_until_long']}"),
+             _valid_and_copy(k, f"Дійсний до {ctx['valid_until_long']}"),
              k.p(f"НАРЯД № {_esc(ctx['doc_no'])}", "title"),
              k.p("<b>на видавання (приймання) військового майна</b>", "center"), k.gap(5),
              req_table(["Реєстраційний номер", "Номер аркуша", "Номер документа", "Дата документа",
@@ -442,11 +453,12 @@ def naryad(ctx: dict) -> bytes:
     # Підпис командира військової частини (затверджує документи) — ліворуч посада й звання,
     # праворуч «Ім'я ПРІЗВИЩЕ»; поруч — таблиця упаковки, як у формі.
     ap = ctx["approver"]
-    sign = Table([[k.p(_esc(ap["position"]) or "_" * 30), k.p("____________", "td_c"), k.p(_esc(ap["name"]), "right")],
-                  [k.p(_esc(ap["rank"])), k.p("(підпис)", "cap"), ""]],
+    sign = Table([[k.p(_esc(ap["position"]) or "_" * 30), "", ""],
+                  [k.p(_esc(ap["rank"])), k.p("____________", "td_c"), k.p(_esc(ap["name"]), "right")],
+                  ["", k.p("(підпис)", "cap"), ""]],
                  colWidths=[8.0 * cm, 4.0 * cm, 6.0 * cm])
     sign.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                              ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+                              ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("SPAN", (0, 0), (1, 0))]))
     story += [sign, k.gap(12)]
     pack = Table([[k.p(h), ""] for h in ("Упаковано місць", "Вид (характер) упаковки", "Маркування", "Маса",
                                          "Відправлено місць", "Дата відправлення")],

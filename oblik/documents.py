@@ -390,10 +390,14 @@ def validate(conn: sqlite3.Connection, doc_id: int) -> list[str]:
         n = first_line[(src_id, key)]
         have = balances.available(conn, src_id, key, op_date)
         if have < qty:
-            errors.append(
-                f"Рядок {n}: {_key_title(conn, key)} — у «{locations.title(conn, src_id)}» на {fmt_date(op_date)} "
-                f"(з урахуванням пізніших документів) доступно {format_qty(max(have, 0))}, "
-                f"потрібно {format_qty(qty)}")
+            msg = (f"Рядок {n}: {_key_title(conn, key)} — у «{locations.title(conn, src_id)}» на {fmt_date(op_date)} "
+                   f"(з урахуванням пізніших документів) доступно {format_qty(max(have, 0))}, "
+                   f"потрібно {format_qty(qty)}")
+            arrived = balances.first_arrival(conn, src_id, key)
+            if arrived and arrived > op_date and balances.key_balance(conn, src_id, key, None) >= qty:
+                msg += (f". Це майно взято на облік лише {fmt_date(arrived)} — перевірте дату операції "
+                        f"цього документа та дату документа, яким воно оприбутковане (наприклад, введення залишків)")
+            errors.append(msg)
     for (_, key), n in incoming.items():
         # Поштучна одиниця надходить ззовні — її не повинно вже бути на обліку.
         pos = balances.item_position(conn, key.item_id, op_date)
@@ -563,6 +567,20 @@ def post(conn: sqlite3.Connection, doc_id: int) -> None:
         raise
     conn.execute("RELEASE post_doc")
     audit.write(conn, "post", "documents", doc_id, label(conn, doc_id))
+
+
+def correct(conn: sqlite3.Connection, doc_id: int) -> tuple[int, int]:
+    """Виправити проведений документ одним кроком: сторно датою операції оригіналу (щоб залишки
+    за проміжні дати не подвоїлись) + чернетка-копія з тими самими реквізитами й рядками.
+    Повертає (сторно, нова чернетка). Якщо сторно неможливе — нічого не створюється."""
+    doc = get(conn, doc_id)
+    storno_id = reverse(conn, doc_id, on_date=doc["op_date"], basis=f"Виправлення: {label(conn, doc_id)}")
+    header = {k: doc[k] for k in ("basis", "service_id", "recipient_person_id", "note", "order_id",
+                                  "valid_until", "extra_json") if doc[k] is not None}
+    new_id = create_draft(conn, doc["doc_type"], doc["from_location_id"], doc["to_location_id"],
+                          doc_date=doc["doc_date"], op_date=doc["op_date"], **header)
+    set_lines(conn, new_id, [dict(ln) for ln in lines(conn, doc_id)])
+    return storno_id, new_id
 
 
 def reverse(conn: sqlite3.Connection, doc_id: int, on_date: str | None = None,

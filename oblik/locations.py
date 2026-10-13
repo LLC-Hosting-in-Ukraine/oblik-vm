@@ -120,7 +120,8 @@ def title(conn: sqlite3.Connection, location_id: int, with_owner: bool = True) -
     loc = get(conn, location_id)
     if loc["kind"] == "unit":
         u = conn.execute("SELECT name, short_name FROM units WHERE id = ?", (loc["unit_id"],)).fetchone()
-        return u["name"]
+        # У паперових документах — умовне найменування (наприклад, «в/ч А0000»), якщо задано.
+        return (u["short_name"] or u["name"]) if not with_owner else u["name"]
     if loc["kind"] == "person":
         p = conn.execute("SELECT * FROM persons WHERE id = ?", (loc["person_id"],)).fetchone()
         name = person_short(p["last_name"], p["first_name"], p["middle_name"])

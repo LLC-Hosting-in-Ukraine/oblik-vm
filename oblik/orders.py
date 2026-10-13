@@ -224,6 +224,26 @@ def order_options(conn: sqlite3.Connection, current: int | None = None) -> list[
     return result
 
 
+def _unit_ancestors(conn: sqlite3.Connection, unit_id: int) -> set[int]:
+    """Підрозділ і всі, під кого він входить, по структурі."""
+    seen: set[int] = set()
+    while unit_id and unit_id not in seen:
+        seen.add(unit_id)
+        row = conn.execute("SELECT parent_id FROM units WHERE id = ?", (unit_id,)).fetchone()
+        unit_id = row["parent_id"] if row else None
+    return seen
+
+
+def _same_side(conn: sqlite3.Connection, doc_loc: int, order_loc: int) -> bool:
+    """Сторона документа відповідає стороні наряду: те саме місце або місце всередині
+    підрозділу з наряду (наряд — «від частини», а видає її склад чи служба)."""
+    if doc_loc == order_loc:
+        return True
+    a, b = locations.get(conn, doc_loc), locations.get(conn, order_loc)
+    return (a["kind"] == "unit" and b["kind"] == "unit"
+            and b["unit_id"] in _unit_ancestors(conn, a["unit_id"]))
+
+
 def warnings(conn: sqlite3.Connection, doc_id: int) -> list[str]:
     """Попередження для документа за нарядом (провести можна). Порожньо — усе збігається."""
     doc = documents.get(conn, doc_id)
@@ -231,7 +251,8 @@ def warnings(conn: sqlite3.Connection, doc_id: int) -> list[str]:
         return []
     order = documents.get(conn, doc["order_id"])
     result = []
-    if (doc["from_location_id"], doc["to_location_id"]) != (order["from_location_id"], order["to_location_id"]):
+    if not (_same_side(conn, doc["from_location_id"], order["from_location_id"])
+            and _same_side(conn, doc["to_location_id"], order["to_location_id"])):
         result.append(
             f"Сторони не збігаються з нарядом: у наряді "
             f"{locations.title(conn, order['from_location_id'])} → {locations.title(conn, order['to_location_id'])}")

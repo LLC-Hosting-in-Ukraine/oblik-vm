@@ -434,7 +434,11 @@ def naryad() -> Document:
     sec.top_margin = sec.bottom_margin = Cm(1.2)
     para(doc, "Додаток 5 до Інструкції з обліку військового майна у Збройних Силах України "
               "(пункт 6 розділу III)", size=8, align=WD_ALIGN_PARAGRAPH.RIGHT)
-    para(doc, "Дійсний до {{ valid_until_long }}")
+    vc = doc.add_table(rows=1, cols=2)
+    no_borders(vc)
+    fix_widths(vc, [12.0, 6.0])
+    set_cell(vc.cell(0, 0), "Дійсний до {{ valid_until_long }}", size=11)
+    set_cell(vc.cell(0, 1), "Прим. № ________", size=11, align=WD_ALIGN_PARAGRAPH.RIGHT)
     para(doc, "НАРЯД № {{ doc_no }}", size=14, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
     para(doc, "на видавання (приймання) військового майна", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
     gap(doc, 4)
@@ -495,14 +499,14 @@ def naryad() -> Document:
     gap(doc, 14)
 
     # Підпис командира військової частини: посада і звання ліворуч, «Ім'я ПРІЗВИЩЕ» праворуч.
-    s = doc.add_table(rows=2, cols=3)
+    s = doc.add_table(rows=3, cols=3)
     no_borders(s)
     fix_widths(s, [8.0, 4.0, 6.0])
     set_cell(s.cell(0, 0), "{{ approver.position }}", size=11)
-    set_cell(s.cell(0, 1), "____________", size=11, align=WD_ALIGN_PARAGRAPH.CENTER)
-    set_cell(s.cell(0, 2), "{{ approver.name }}", size=11, align=WD_ALIGN_PARAGRAPH.RIGHT)
     set_cell(s.cell(1, 0), "{{ approver.rank }}", size=11)
-    set_cell(s.cell(1, 1), "(підпис)", size=7, align=WD_ALIGN_PARAGRAPH.CENTER)
+    set_cell(s.cell(1, 1), "____________", size=11, align=WD_ALIGN_PARAGRAPH.CENTER)
+    set_cell(s.cell(1, 2), "{{ approver.name }}", size=11, align=WD_ALIGN_PARAGRAPH.RIGHT)
+    set_cell(s.cell(2, 1), "(підпис)", size=7, align=WD_ALIGN_PARAGRAPH.CENTER)
     gap(doc, 12)
 
     # Унизу: М.П., розсилка примірників — ліворуч; таблиця упаковки — праворуч.

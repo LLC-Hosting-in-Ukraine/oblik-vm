@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_help.html" import hint %}
+{% block title %}Імпорт оборотки — {{ app_name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ url_for('documents.index') }}">Документи</a> /
+  <a href="{{ url_for('documents.import_opening') }}">Залишки з Excel</a> /</p>
+<h1>Оборотка з бухгалтерії: що імпортувати</h1>
+
+<ol class="doc-steps">
+  <li class="done">Файл завантажено: рядків — {{ ob.rows|length }}, МВО — {{ ob.mvos|length }}</li>
+  <li class="current">Позначте, чиє майно імпортувати і на яке місце обліку; перевірте класи за рахунками</li>
+  <li>Програма створить <b>чернетки</b> — перегляньте, виправте категорії, проведіть</li>
+</ol>
+
+{% if errors %}
+<div class="banner banner-error"><strong>Чернетки не створено — нічого не змінено:</strong>
+  {% for e in errors[:50] %}<div>• {{ e }}</div>{% endfor %}
+  {% if errors|length > 50 %}<div>… і ще {{ errors|length - 50 }}.</div>{% endif %}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('documents.import_oborotka') }}" class="form form-wide">
+  <input type="hidden" name="file_b64" value="{{ file_b64 }}">
+  <div class="form-grid">
+    <div class="field">
+      <label for="f-op_date">Дата, на яку залишки{{ hint('Дата операції') }}</label>
+      <input id="f-op_date" type="date" name="op_date" value="{{ op_date }}" required>
+      <div class="help">Дата, на яку сформовано оборотку. Усі подальші документи — пізніше.</div>
+    </div>
+  </div>
+
+  <h2>Матеріально відповідальні особи{{ hint('МВО') }}</h2>
+  <p class="help">У оборотці — майно кількох МВО. Позначте тих, чиє майно ведете в цій програмі, і для
+    кожної оберіть місце обліку. Якщо особа з оборотки є в довіднику «Особи» і вказана МВО
+    місця обліку, програма підставляє це місце сама — перевірте. Кожне МВО має мати своє місце
+    обліку (довідник «Підрозділи» → «Місце обліку майна» + МВО), тоді майно потрапить саме до неї.</p>
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th></th><th>МВО (як у бухгалтерії)</th><th class="num">Рядків</th><th class="num">Сума, грн</th>
+      <th>Куди внести</th></tr></thead>
+    <tbody>
+    {% for m in ob.mvos %}
+      {% set i = loop.index0|string %}
+      <tr>
+        <td><input type="checkbox" name="mvo" value="{{ i }}" id="mvo-{{ i }}"
+                   {% if i in chosen %}checked{% endif %}></td>
+        <td><label for="mvo-{{ i }}">{{ m.name or '— не вказано —' }}</label></td>
+        <td class="num">{{ m.rows }}</td>
+        <td class="num nowrap">{{ m.total_text }}</td>
+        <td><select name="place_{{ i }}">
+          <option value=""></option>
+          {% for group, opts in place_options %}
+            <optgroup label="{{ group }}">
+              {% for code, title in opts %}
+                <option value="{{ code }}" {% if places.get(i, default_place) == code %}selected{% endif %}>{{ title }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Рахунки → клас майна{{ hint('Клас майна') }}</h2>
+  <p class="help">Клас і поштучний облік визначаються за рахунком бухгалтерії. Типові значення —
+    <b>припущення програми</b> за планом рахунків бюджетних установ: перевірте. «Поштучно» —
+    кожна одиниця окремо, інвентарний номер береться з графи «Номенклатура» (можливо, лише якщо
+    в усіх рядках рахунку кількість 1).</p>
+  <div class="table-wrap">
+  <table class="grid">
+    <thead><tr><th>Рахунок</th><th class="num">Рядків</th><th>Клас майна</th><th>Поштучно</th><th>Категорія{{ hint('Категорія') }}</th></tr></thead>
+    <tbody>
+    {% for a in ob.accounts %}
+      {% set c = classes.get(a.code, (a.accounting_class, a.serial)) %}
+      <tr>
+        <td>{{ a.code }}</td>
+        <td class="num">{{ a.rows }}</td>
+        <td><select name="cls_{{ a.code }}">
+          {% for code, title in class_options %}
+            <option value="{{ code }}" {% if c[0] == code %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select></td>
+        <td>{% if a.all_one %}<input type="checkbox" name="serial_{{ a.code }}" value="1" {% if c[1] %}checked{% endif %}>
+          {% else %}<span class="muted">ні (є кількість більше 1)</span>{% endif %}</td>
+        <td><select name="cat_{{ a.code }}">
+          {% for code, title in category_options %}
+            <option value="{{ code }}" {% if categories.get(a.code, 1) == code %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <p class="help">Категорії в оборотці немає. Оберіть, яка категорія <b>за замовчуванням</b> для кожного
+    рахунку (якщо в майні одного рахунку вони різні — оберіть переважну, а решту виправте в
+    чернетці перед проведенням). Ціна — з графи «Ціна», округлена до копійок.</p>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Створити чернетки</button>
+    <a class="btn" href="{{ url_for('documents.import_opening') }}">Інший файл</a>
+  </div>
+</form>
+{% endblock %}

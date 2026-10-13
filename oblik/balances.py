@@ -114,6 +114,14 @@ def available(conn: sqlite3.Connection, location_id: int, key: Key, on_date: str
     return lowest
 
 
+def first_arrival(conn: sqlite3.Connection, location_id: int, key: Key) -> str | None:
+    """Дата, з якої майно за цим ключем з'явилося в місці (перше надходження)."""
+    return conn.execute(
+        "SELECT MIN(op_date) FROM movements WHERE to_location_id = ? AND nomenclature_id = ? "
+        "AND item_id IS ? AND category IS ? AND price_kop = ?",
+        (location_id, key.nomenclature_id, key.item_id, key.category, key.price_kop)).fetchone()[0]
+
+
 def item_position(conn: sqlite3.Connection, item_id: int, on_date: str | None = None) -> dict | None:
     """Де перебуває поштучна одиниця (місце, категорія, ціна). None — не на обліку."""
     rows = [r for r in balances(conn, None, on_date, item_id=item_id) if r["qty_m"] > 0]

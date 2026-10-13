@@ -10,7 +10,7 @@ Free Software Foundation. Програма поширюється БЕЗ БУД�
 SPDX-License-Identifier: GPL-3.0-only
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.2"
 __author__ = "Yevhenii Hosting by LLC Hosting in Ukraine"
 __copyright__ = "© 2026 Yevhenii Hosting by LLC Hosting in Ukraine"
 __license__ = "GPL-3.0"

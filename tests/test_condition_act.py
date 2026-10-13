@@ -229,3 +229,24 @@ def test_fill_components_from_act(env):
     draft = act(conn, wh, lines)
     with pytest.raises(DocumentError, match="проведеного"):
         condition.fill_components(conn, draft, system)
+
+
+def test_new_system_price_is_sum_of_written_off(env):
+    """Ціну системи в «Оприбуткувати» не вписано — береться сума списаного."""
+    storage, client, ids = env
+    conn, wh, cams, sys_nom, system = setup(storage, ids)
+    conn.commit()
+    conn.close()
+    head = {"from_place": f"u:{ids['wh']}", "doc_date": "2026-10-05", "basis": "Об'єднання"}
+    doc = doc_id_from(client.post("/documents/new/condition", data=head))
+    keys = [f"{ids['cam']}|{c}|1|446000" for c in cams] + [f"{ids['cable']}||1|1000"]
+    lines = {"mode": "out", "ln_key": keys, "ln_qty": ["", "", "", "20"], "ln_note": [""] * 4,
+             "ln_ynorm": [""] * 4, "ln_yfact": [""] * 4,
+             "in_nom": [str(sys_nom)], "in_name": ["Система відеоспостереження"], "in_serial": [""],
+             "in_inv": ["СВН-1"], "in_cat": ["1"], "in_price": [""], "in_qty": ["1"], "in_note": [""],
+             "in_new_uom": ["к-т"], "in_new_class": ["fixed"], "in_new_serial": ["1"]}
+    resp = client.post(f"/documents/{doc}", data={**head, **lines, "action": "save"})
+    assert resp.status_code == 302
+    conn = open_db(storage)
+    got = [ln for ln in documents.lines(conn, doc) if ln["direction"] == "in"]
+    assert [ln["price_kop"] for ln in got] == [3 * 446000 + 20 * 1000]

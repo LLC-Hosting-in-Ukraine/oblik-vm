@@ -14,6 +14,8 @@
 
 <p><a class="btn" href="{{ url_for('documents.import_template') }}">Завантажити шаблон (.xlsx)</a>
   <span class="muted">Один рядок — одне найменування; поштучне майно — по рядку на одиницю з номером.</span></p>
+<p class="help"><b>Є оборотка з бухгалтерії?</b> Завантажте її як є (.xlsx) — програма розпізнає її сама
+  і запитає, чиє майно (яких МВО) і куди вносити.</p>
 
 {% if errors %}
 <div class="banner banner-error"><strong>Файл не завантажено — виправте в Excel і спробуйте ще раз
@@ -26,7 +28,7 @@
   <div class="form-grid">
     <div class="field">
       <label for="f-to_place">Куди внести (місце обліку або особа){{ hint('Місце обліку') }}</label>
-      <select id="f-to_place" name="to_place" required>
+      <select id="f-to_place" name="to_place">
         <option value=""></option>
         {% for group, opts in place_options %}
           <optgroup label="{{ group }}">
@@ -36,7 +38,8 @@
           </optgroup>
         {% endfor %}
       </select>
-      <div class="help">Майно під звітом МВО — на місце обліку (склад, службу), а не на особу.</div>
+      <div class="help">Майно під звітом МВО — на місце обліку (склад, службу), а не на особу.
+        Для оборотки з бухгалтерії місце обирається на наступному кроці — окремо для кожної МВО.</div>
     </div>
     <div class="field">
       <label for="f-op_date">Дата, на яку залишки{{ hint('Дата операції') }}</label>
